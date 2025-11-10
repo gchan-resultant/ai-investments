@@ -403,16 +403,14 @@
                 }
             ],
             summary: {
-                totalResourceCost: 5178140, // Sum of all resourceCost
+                // THIS IS THE FIX: Corrected totalResourceCost from 5178140 to 5226140
+                totalResourceCost: 5226140, // Sum of all 9 project resourceCosts
                 totalResourceHours: 14906, // Sum of all resourceHours
                 totalMinCapital: 393900,  // Sum of all capitalCostMin
                 totalMaxCapital: 1010900, // Sum of all capitalCostMax
                 totalOngoingCost: 1246400, // Sum of all ongoingCost
                 totalMinROI: 8390000,     // Sum of ROI-generating projects' min ROI
                 totalMaxROI: 10820000,    // Sum of ROI-generating projects' max ROI
-                // Note: The PDF summary claims $15-26M ROI, but the itemized list only adds up to $8.39M - $10.82M.
-                // The $15.6M from "Dev Tools" and $1.87M from "Data Prep" are listed as "Return" in the PDF,
-                // but are enablers, not direct revenue. Let's use the $15M figure from the PDF summary for high-level charts.
                 summaryMinROI: 15000000,
                 summaryMaxROI: 26000000,
             }
@@ -425,6 +423,7 @@
         // --- STATE ---
         const chartInstances = {};
         let activeView = 'capital'; // 'capital', 'total', 'hours'
+        let activeBreakdownTab = 'investmentView'; // THIS IS THE FIX: Track the active tab
         const themeColors = {
             blue: '#0053a1',
             mint: '#6dd4bc',
@@ -438,6 +437,7 @@
             setupToggles();
             setupTabs();
             updateDashboard();
+            initAILogic();
         });
         
         function setupToggles() {
@@ -479,8 +479,13 @@
             const waterfallContents = document.querySelectorAll('.waterfall-tab-content');
             waterfallTabs.forEach(tab => {
                 tab.addEventListener('click', () => {
-                    waterfallTabs.forEach(t => t.classList.remove('text-theme-blue', 'border-theme-blue'));
+                    waterfallTabs.forEach(t => {
+                        t.classList.remove('text-theme-blue', 'border-theme-blue');
+                        t.classList.add('text-gray-500', 'border-transparent', 'hover:text-gray-700', 'hover:border-gray-300');
+                    });
                     tab.classList.add('text-theme-blue', 'border-theme-blue');
+                    tab.classList.remove('text-gray-500', 'border-transparent', 'hover:text-gray-700', 'hover:border-gray-300');
+
                     const tabName = tab.getAttribute('data-tab');
                     waterfallContents.forEach(c => c.classList.add('hidden'));
                     document.getElementById(`${tabName}View`).classList.remove('hidden');
@@ -491,11 +496,23 @@
             const breakdownContents = document.querySelectorAll('.breakdown-tab-content');
             breakdownTabs.forEach(tab => {
                 tab.addEventListener('click', () => {
-                    breakdownTabs.forEach(t => t.classList.remove('text-theme-blue', 'border-theme-blue'));
-                    tab.classList.add('text-theme-blue', 'border-theme-blue');
                     const tabName = tab.getAttribute('data-tab');
+                    activeBreakdownTab = tabName; // THIS IS THE FIX: Store the active tab
+
+                    breakdownTabs.forEach(t => {
+                        t.classList.remove('text-theme-blue', 'border-theme-blue');
+                        t.classList.add('text-gray-500', 'border-transparent', 'hover:text-gray-700', 'hover:border-gray-300');
+                    });
+                    tab.classList.add('text-theme-blue', 'border-theme-blue');
+                    tab.classList.remove('text-gray-500', 'border-transparent', 'hover:text-gray-700', 'hover:border-gray-300');
+
                     breakdownContents.forEach(c => c.classList.add('hidden'));
-                    document.getElementById(`${tabName}View`).classList.remove('hidden');
+                    
+                    // THIS IS THE FIX: No more extra "View"
+                    const contentEl = document.getElementById(tabName);
+                    if (contentEl) {
+                        contentEl.classList.remove('hidden');
+                    }
                 });
             });
         }
@@ -521,10 +538,15 @@
         }
 
         function updateVisibility() {
-            const financialCharts = ['waterfallSummary', 'waterfallItemized', 'timeline', 'portfolioMix', 'efficiency'];
+            const financialCharts = ['waterfallSummary', 'itemizedWaterfallView', 'timeline', 'portfolioMix', 'efficiency'];
             const hourCharts = ['resourceInvestment', 'resourceAllocation'];
-            const financialBreakdowns = ['roiView'];
             
+            const roiTabButton = document.querySelector('[data-tab="roiView"]');
+            const investmentTabButton = document.querySelector('[data-tab="investmentView"]');
+            const roiTabContent = document.getElementById('roiView');
+            const investmentTabContent = document.getElementById('investmentView');
+
+
             if (activeView === 'hours') {
                 financialCharts.forEach(id => {
                     const el = document.getElementById(id);
@@ -534,12 +556,19 @@
                     const el = document.getElementById(id);
                     if (el) el.classList.remove('hidden');
                 });
-                financialBreakdowns.forEach(id => {
-                    const el = document.getElementById(id);
-                    if (el) el.classList.add('hidden');
-                });
-                // Show investment breakdown, but it will be in hours
-                document.getElementById('investmentView').classList.remove('hidden');
+                
+                // When switching to 'hours', force the 'Investment' tab to be active
+                if (roiTabButton) roiTabButton.classList.add('hidden');
+                if (roiTabContent) roiTabContent.classList.add('hidden');
+                
+                if (investmentTabButton) {
+                    investmentTabButton.classList.remove('hidden');
+                    investmentTabButton.classList.add('text-theme-blue', 'border-theme-blue');
+                    investmentTabButton.classList.remove('text-gray-500', 'border-transparent', 'hover:text-gray-700', 'hover:border-gray-300');
+                }
+                if (investmentTabContent) investmentTabContent.classList.remove('hidden');
+                activeBreakdownTab = 'investmentView'; // Reset active tab
+
 
             } else { // 'capital' or 'total'
                 financialCharts.forEach(id => {
@@ -550,20 +579,43 @@
                     const el = document.getElementById(id);
                     if (el) el.classList.add('hidden');
                 });
-                financialBreakdowns.forEach(id => {
-                    const el = document.getElementById(id);
-                    if (el) el.classList.remove('hidden');
-                });
+                
+                // THIS IS THE FIX: Restore the previously selected tab
+                if (roiTabButton) roiTabButton.classList.remove('hidden');
+                
+                if (activeBreakdownTab === 'roiView') {
+                    if (roiTabButton) {
+                        roiTabButton.classList.add('text-theme-blue', 'border-theme-blue');
+                        roiTabButton.classList.remove('text-gray-500', 'border-transparent', 'hover:text-gray-700', 'hover:border-gray-300');
+                    }
+                    if (roiTabContent) roiTabContent.classList.remove('hidden');
+                    if (investmentTabButton) {
+                        investmentTabButton.classList.remove('text-theme-blue', 'border-theme-blue');
+                        investmentTabButton.classList.add('text-gray-500', 'border-transparent', 'hover:text-gray-700', 'hover:border-gray-300');
+                    }
+                    if (investmentTabContent) investmentTabContent.classList.add('hidden');
+                } else {
+                    // Default to 'investmentView'
+                    if (investmentTabButton) {
+                        investmentTabButton.classList.add('text-theme-blue', 'border-theme-blue');
+                        investmentTabButton.classList.remove('text-gray-500', 'border-transparent', 'hover:text-gray-700', 'hover:border-gray-300');
+                    }
+                    if (investmentTabContent) investmentTabContent.classList.remove('hidden');
+                    if (roiTabButton) {
+                        roiTabButton.classList.remove('text-theme-blue', 'border-theme-blue');
+                        roiTabButton.classList.add('text-gray-500', 'border-transparent', 'hover:text-gray-700', 'hover:border-gray-300');
+                    }
+                    if (roiTabContent) roiTabContent.classList.add('hidden');
+                }
             }
 
-            // Always show the "Total Investment Breakdown" section, but change its title
             const totalInvestmentSection = document.getElementById('resourceInvestment');
             const totalInvestmentTitle = document.getElementById('totalInvestmentTitle');
             if (activeView === 'hours') {
-                totalInvestmentSection.classList.add('hidden'); // Hide for hours
+                if (totalInvestmentSection) totalInvestmentSection.classList.add('hidden'); // Hide for hours
             } else {
-                totalInvestmentSection.classList.remove('hidden');
-                totalInvestmentTitle.textContent = activeView === 'capital' ? 'Capital vs. Resource Investment' : 'Total Investment Breakdown';
+                if (totalInvestmentSection) totalInvestmentSection.classList.remove('hidden');
+                if (totalInvestmentTitle) totalInvestmentTitle.textContent = activeView === 'capital' ? 'Capital vs. Resource Investment' : 'Total Investment Breakdown';
             }
         }
 
@@ -596,10 +648,6 @@
 
             // Details tab
             populateDetailsTab();
-
-            // AI Features
-            initCfoSummary();
-            initRiskAnalysis();
         }
         
         // --- DATA HELPERS ---
@@ -723,6 +771,7 @@
                 kpiRoi.parentElement.classList.remove('hidden');
             } else if (activeView === 'total') {
                 kpiInvestmentLabel.textContent = 'Total All-In Investment';
+                // THIS IS THE FIX: Using the corrected summary number
                 kpiInvestmentSub.textContent = `(${(fullData.summary.totalMaxCapital / 1000000).toFixed(2)}M Capital + ${(fullData.summary.totalResourceCost / 1000000).toFixed(2)}M Resources)`;
                 kpiRoi.textContent = `$${(roi.minTotal / 1000000).toFixed(1)}M - $${(roi.maxTotal / 1000000).toFixed(1)}M`;
                 kpiRoi.parentElement.classList.remove('hidden');
@@ -944,6 +993,7 @@
             const mixData = {
                 labels: ['Capital Investment', 'Resource Cost'],
                 datasets: [{
+                    // THIS IS THE FIX: Using the corrected summary number
                     data: [fullData.summary.totalMaxCapital, fullData.summary.totalResourceCost],
                     backgroundColor: [themeColors.blue, themeColors.purple],
                 }]
@@ -1031,7 +1081,6 @@
             });
         }
         
-        // THIS IS THE NEW FUNCTION
         function initResourceHourChart(data) {
             const { investment } = data;
             const labels = Object.keys(investment.byCategory);
@@ -1060,7 +1109,6 @@
         }
 
         function initEfficiencyChart() {
-            // THIS IS THE FIX: Added a guard for 'hours' view
             if (activeView === 'hours') {
                 if (chartInstances.efficiency) chartInstances.efficiency.destroy();
                 return; // Don't draw this chart in hours view
@@ -1070,7 +1118,6 @@
                 datasets: fullData.projects
                     .filter(p => p.category === 'Quick Win' || p.category === 'Strategic Value')
                     .map((p, i) => {
-                        // THIS IS THE FIX: Added the missing function call
                         const { investment, roi } = getProjectChartData(p);
                         return {
                             label: p.name,
@@ -1291,48 +1338,59 @@
             }
         }
 
-        function initCfoSummary() {
-            const button = document.getElementById('generateCfoSummary');
-            const output = document.getElementById('cfoSummaryOutput');
-            const spinner = document.getElementById('cfoSummarySpinner');
-            const content = document.getElementById('cfoSummaryContent');
-
-            button.addEventListener('click', async () => {
-                output.classList.remove('hidden');
-                spinner.classList.remove('hidden');
-                content.innerHTML = '';
+        function initAILogic() {
+            document.body.addEventListener('click', async (e) => {
                 
-                const dataSummary = JSON.stringify(fullData.summary);
-                const prompt = `
-                    Based on this financial summary data: ${dataSummary}, 
-                    generate a concise, persuasive summary for a CFO. Focus on the 'Total All-In Investment' (totalMaxInvestment) vs. the 'Summary ROI' (summaryMinROI). 
-                    Emphasize the payback period (<6 Months) and the strategic nature of the investment.
-                    Format as a few key bullet points.
-                `;
-                const systemPrompt = "You are a financial analyst. Your task is to provide a summary for a CFO, focusing on investment vs. return. Be professional, concise, and data-driven.";
+                // Case 1: Clicked on "Generate Summary"
+                const cfoButton = e.target.closest('#generateCfoSummary');
+                if (cfoButton) {
+                    const cfoView = cfoButton.closest('#cfoView');
+                    if (!cfoView) return; 
 
-                const result = await callGeminiAPI(prompt, systemPrompt);
-                spinner.classList.add('hidden');
-                content.innerHTML = result.replace(/\n/g, '<br>'); // Simple formatting
-            });
-        }
-        
-        function initRiskAnalysis() {
-            document.getElementById('detailsView').addEventListener('click', async (e) => {
-                if (e.target.classList.contains('generate-risk')) {
-                    const button = e.target;
+                    const output = cfoView.querySelector('#cfoSummaryOutput');
+                    const spinner = cfoView.querySelector('#cfoSummarySpinner');
+                    const content = cfoView.querySelector('#cfoSummaryContent');
+
+                    if (!output || !spinner || !content) {
+                        console.error("CFO Summary output elements were not found during click!");
+                        return;
+                    }
                     
-                    // Robust selection of the output div
-                    const container = button.closest('[data-risk-container]');
-                    if (!container) return;
-                    const output = container.querySelector('.risk-output');
-                    if (!output) {
-                        console.error("Could not find risk output div");
+                    output.classList.remove('hidden'); 
+                    spinner.classList.remove('hidden');
+                    content.innerHTML = '';
+                    
+                    const dataSummary = JSON.stringify(fullData.summary);
+                    const prompt = `
+                        Based on this financial summary data: ${dataSummary}, 
+                        generate a concise, persuasive summary for a CFO. Focus on the 'Total All-In Investment' (totalMaxInvestment) vs. the 'Summary ROI' (summaryMinROI). 
+                        Emphasize the payback period (<6 Months) and the strategic nature of the investment.
+                        Format as a few key bullet points.
+                    `;
+                    const systemPrompt = "You are a financial analyst. Your task is to provide a summary for a CFO, focusing on investment vs. return. Be professional, concise, and data-driven.";
+
+                    const result = await callGeminiAPI(prompt, systemPrompt);
+                    spinner.classList.add('hidden');
+                    content.innerHTML = result.replace(/\n/g, '<br>'); 
+                }
+
+                // Case 2: Clicked on "Analyze Risks"
+                const riskButton = e.target.closest('.generate-risk');
+                if (riskButton) {
+                    const container = riskButton.closest('[data-risk-container]');
+                    if (!container) {
+                        console.error("Risk container not found for button", riskButton);
                         return;
                     }
 
-                    const projectName = button.getAttribute('data-project');
-                    const projectDesc = button.getAttribute('data-desc');
+                    const output = container.querySelector('.risk-output');
+                    if (!output) {
+                        console.error("Risk output not found in container", container);
+                        return;
+                    }
+
+                    const projectName = riskButton.getAttribute('data-project');
+                    const projectDesc = riskButton.getAttribute('data-desc');
 
                     output.classList.remove('hidden');
                     output.innerHTML = `<div class="flex items-center space-x-2 text-gray-600">
@@ -1351,7 +1409,7 @@
                 }
             });
         }
-
+        
     </script>
 
 </body>
