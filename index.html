@@ -5,7 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>AI Initiative Financial Dashboard</title>
     <!-- Chosen Palette: Custom Theme (Blue, Mint, Purple, Yellow) -->
-    <!-- Application Structure Plan: A single-page dashboard with a master 3-way toggle (Capital, Total $, Hours) at the top. This toggle controls the entire dashboard's context. Below, a tabbed interface ("Dashboard", "Use Case Details", "CFO Talking Points") allows users to drill down. The "Dashboard" tab contains all the key financial visualizations (Waterfall, Timeline, Portfolio Mix, Efficiency) which dynamically update based on the master toggle. This structure provides a powerful, flexible narrative, allowing the user to seamlessly shift between the "cash-only" story, the "true total cost" story, and the "internal effort" story, all in one place. -->
+    <!-- Application Structure Plan: A single-page dashboard with a master 3-way toggle (Capital, Total $, Hours) at the top. This toggle controls the entire dashboard's context. Below, a tabbed interface ("Dashboard", "Use Case Details") allows users to drill down. The "Dashboard" tab contains all the key financial visualizations (Waterfall, Timeline, Portfolio Mix, Efficiency) which dynamically update based on the master toggle. This structure provides a powerful, flexible narrative. -->
     <!-- Visualization & Content Choices:
         - Master Toggle: Buttons to switch 'activeView' state (Capital, Total $, Hours). This is the core interaction.
         - KPI Cards: Dynamic text fields showing high-level totals based on 'activeView'.
@@ -15,8 +15,8 @@
         - Resource Allocation (Chart.js Donut): New section showing resource hour breakdown by category.
         - Portfolio Mix (Chart.js Donut): Shows Investment $ and ROI $ by category. Dynamic. Hidden for 'Hours' view.
         - Project Efficiency (Chart.js Bubble): Maps Cost vs. ROI for key projects. Dynamic. Hidden for 'Hours' view.
-        - Details Tab: Retains granular breakdown, now with dynamic cost data.
-        - Gemini API: "CFO Talking Points" and "Risk Analysis" remain as-is, providing qualitative AI insights.
+        - Details Tab: Retains granular breakdown, now with dynamic cost data and risk analysis.
+        - Gemini API: "Risk Analysis" on details tab provides qualitative AI insights.
         - CONFIRMATION: NO SVG graphics used. NO Mermaid JS used.
     -->
     <script src="https://cdn.tailwindcss.com"></script>
@@ -27,7 +27,7 @@
                 extend: {
                     colors: {
                         'theme-blue': '#0053a1',
-                        'theme-mint': '#6dd4bc',
+                        'theme-mint': '#36A593', // User's new color
                         'theme-purple': '#663399',
                         'theme-yellow': '#f1dd39',
                     }
@@ -95,9 +95,7 @@
                     <button data-tab="details" class="dashboard-tab whitespace-nowrap py-4 px-1 border-b-2 font-medium text-sm text-gray-500 border-transparent hover:text-gray-700 hover:border-gray-300">
                         Use Case Details
                     </button>
-                    <button data-tab="cfo" class="dashboard-tab whitespace-nowrap py-4 px-1 border-b-2 font-medium text-sm text-gray-500 border-transparent hover:text-gray-700 hover:border-gray-300">
-                        ✨ CFO Talking Points
-                    </button>
+                    <!-- CFO Tab Removed -->
                 </nav>
             </div>
         </div>
@@ -240,31 +238,8 @@
                 <!-- Content will be dynamically generated here -->
             </div>
 
-            <!-- CFO Talking Points Tab -->
+            <!-- CFO Talking Points Tab (Removed) -->
             <div id="cfoView" class="tab-content hidden">
-                <div class="bg-white p-6 rounded-lg shadow-lg">
-                    <h2 class="text-2xl font-semibold mb-4 text-theme-blue">✨ CFO Talking Points</h2>
-                    <div class="space-y-4 mb-6">
-                        <p class="text-gray-700">Click the button to generate a concise, CFO-ready summary of the key financial arguments for this AI investment plan.</p>
-                        <button id="generateCfoSummary" class="inline-flex items-center px-4 py-2 bg-theme-blue text-white font-semibold rounded-lg shadow hover:bg-blue-700 transition duration-300">
-                            <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 mr-2" viewBox="0 0 20 20" fill="currentColor">
-                                <path fill-rule="evenodd" d="M10 3a1 1 0 00-1 1v5.586L7.707 7.293a1 1 0 00-1.414 1.414l3 3a1 1 0 001.414 0l3-3a1 1 0 00-1.414-1.414L11 9.586V4a1 1 0 00-1-1z" clip-rule="evenodd" />
-                                <path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm0 2a10 10 0 100-20 10 10 0 000 20z" clip-rule="evenodd" />
-                            </svg>
-                            Generate Summary
-                        </button>
-                    </div>
-                    <div id="cfoSummaryOutput" class="p-4 bg-gray-50 rounded-lg border border-gray-200 hidden">
-                        <div id="cfoSummarySpinner" class="flex items-center space-x-2 text-gray-600">
-                            <svg class="animate-spin h-5 w-5 text-theme-blue" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
-                                <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
-                                <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
-                            </svg>
-                            <span>Generating talking points...</span>
-                        </div>
-                        <div id="cfoSummaryContent" class="text-gray-800"></div>
-                    </div>
-                </div>
             </div>
 
         </div> <!-- /end #dashboard-content -->
@@ -425,7 +400,7 @@
         let activeBreakdownTab = 'investmentView'; 
         const themeColors = {
             blue: '#0053a1',
-            mint: '#6dd4bc',
+            mint: '#36A593', // User's new color
             purple: '#663399',
             yellow: '#f1dd39',
         };
@@ -536,7 +511,6 @@
         }
 
         function updateVisibility() {
-            // THIS IS THE FIX: Removed 'itemizedWaterfallView' from this array
             const financialCharts = ['waterfallSummary', 'timeline', 'portfolioMix', 'efficiency'];
             const hourCharts = ['resourceInvestment', 'resourceAllocation'];
             
@@ -1338,39 +1312,8 @@
         function initAILogic() {
             document.body.addEventListener('click', async (e) => {
                 
-                // Case 1: Clicked on "Generate Summary"
-                const cfoButton = e.target.closest('#generateCfoSummary');
-                if (cfoButton) {
-                    const cfoView = cfoButton.closest('#cfoView');
-                    if (!cfoView) return; 
-
-                    const output = cfoView.querySelector('#cfoSummaryOutput');
-                    const spinner = cfoView.querySelector('#cfoSummarySpinner');
-                    const content = cfoView.querySelector('#cfoSummaryContent');
-
-                    if (!output || !spinner || !content) {
-                        console.error("CFO Summary output elements were not found during click!");
-                        return;
-                    }
-                    
-                    output.classList.remove('hidden'); 
-                    spinner.classList.remove('hidden');
-                    content.innerHTML = '';
-                    
-                    const dataSummary = JSON.stringify(fullData.summary);
-                    const prompt = `
-                        Based on this financial summary data: ${dataSummary}, 
-                        generate a concise, persuasive summary for a CFO. Focus on the 'Total All-In Investment' (totalMaxInvestment) vs. the 'Summary ROI' (summaryMinROI). 
-                        Emphasize the payback period (<6 Months) and the strategic nature of the investment.
-                        Format as a few key bullet points.
-                    `;
-                    const systemPrompt = "You are a financial analyst. Your task is to provide a summary for a CFO, focusing on investment vs. return. Be professional, concise, and data-driven.";
-
-                    const result = await callGeminiAPI(prompt, systemPrompt);
-                    spinner.classList.add('hidden');
-                    content.innerHTML = result.replace(/\n/g, '<br>'); 
-                }
-
+                // Case 1: Clicked on "Generate Summary" (Removed)
+                
                 // Case 2: Clicked on "Analyze Risks"
                 const riskButton = e.target.closest('.generate-risk');
                 if (riskButton) {
