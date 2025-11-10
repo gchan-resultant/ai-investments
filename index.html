@@ -15,8 +15,7 @@
         - Resource Allocation (Chart.js Donut): New section showing resource hour breakdown by category.
         - Portfolio Mix (Chart.js Donut): Shows Investment $ and ROI $ by category. Dynamic. Hidden for 'Hours' view.
         - Project Efficiency (Chart.js Bubble): Maps Cost vs. ROI for key projects. Dynamic. Hidden for 'Hours' view.
-        - Details Tab: Retains granular breakdown, now with dynamic cost data and risk analysis.
-        - Gemini API: "Risk Analysis" on details tab provides qualitative AI insights.
+        - Details Tab: Retains granular breakdown of projects.
         - CONFIRMATION: NO SVG graphics used. NO Mermaid JS used.
     -->
     <script src="https://cdn.tailwindcss.com"></script>
@@ -411,7 +410,7 @@
             setupToggles();
             setupTabs();
             updateDashboard();
-            initAILogic();
+            // initAILogic(); // Removed
         });
         
         function setupToggles() {
@@ -1261,93 +1260,17 @@
                             </div>
                         </div>
 
-                        <div class="mt-4" data-risk-container>
-                            <button class="generate-risk text-sm font-medium text-theme-blue hover:text-blue-700" data-project="${project.name}" data-desc="${project.description}">
-                                ✨ Analyze Risks
-                            </button>
-                            <div class="risk-output p-3 bg-gray-50 rounded border border-gray-200 mt-2 hidden"></div>
-                        </div>
+                        <!-- Analyze Risks feature removed -->
                     </div>
                 `;
                 container.innerHTML += card;
             });
         }
 
-        // --- AI FEATURES ---
-
-        const API_URL = 'https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash-preview-09-2025:generateContent?key=';
-        const API_KEY = ""; // Will be provided by the environment
-
-        async function callGeminiAPI(prompt, systemInstruction = "") {
-            const payload = {
-                contents: [{ parts: [{ text: prompt }] }],
-                tools: [{ "google_search": {} }],
-            };
-            if (systemInstruction) {
-                payload.systemInstruction = { parts: [{ text: systemInstruction }] };
-            }
-
-            try {
-                const response = await fetch(`${API_URL}${API_KEY}`, {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify(payload)
-                });
-                if (!response.ok) {
-                    throw new Error(`API Error: ${response.status} ${response.statusText}`);
-                }
-                const result = await response.json();
-                const candidate = result.candidates?.[0];
-                if (candidate && candidate.content?.parts?.[0]?.text) {
-                    return candidate.content.parts[0].text;
-                } else {
-                    return "No content generated or response format is unexpected.";
-                }
-            } catch (error) {
-                console.error("Error calling Gemini API:", error);
-                return `An error occurred: ${error.message}. Please check the console.`;
-            }
-        }
-
+        // --- AI FEATURES (Removed) ---
+        
         function initAILogic() {
-            document.body.addEventListener('click', async (e) => {
-                
-                // Case 1: Clicked on "Generate Summary" (Removed)
-                
-                // Case 2: Clicked on "Analyze Risks"
-                const riskButton = e.target.closest('.generate-risk');
-                if (riskButton) {
-                    const container = riskButton.closest('[data-risk-container]');
-                    if (!container) {
-                        console.error("Risk container not found for button", riskButton);
-                        return;
-                    }
-
-                    const output = container.querySelector('.risk-output');
-                    if (!output) {
-                        console.error("Risk output not found in container", container);
-                        return;
-                    }
-
-                    const projectName = riskButton.getAttribute('data-project');
-                    const projectDesc = riskButton.getAttribute('data-desc');
-
-                    output.classList.remove('hidden');
-                    output.innerHTML = `<div class="flex items-center space-x-2 text-gray-600">
-                        <svg class="animate-spin h-4 w-4 text-theme-blue" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
-                            <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
-                            <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
-                        </svg>
-                        <span>Analyzing risks for ${projectName}...</span>
-                    </div>`;
-
-                    const prompt = `Analyze the potential financial and operational risks for an AI project named "${projectName}" with the description: "${projectDesc}". Provide 2-3 key risks and potential mitigation strategies. Format as bullet points.`;
-                    const systemPrompt = "You are a risk management expert specializing in AI and IT projects.";
-                    
-                    const result = await callGeminiAPI(prompt, systemPrompt);
-                    output.innerHTML = result.replace(/\n/g, '<br>');
-                }
-            });
+            // All AI logic has been removed as requested.
         }
         
     </script>
