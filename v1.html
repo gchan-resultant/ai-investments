@@ -1,0 +1,1275 @@
+<!-- Chosen Palette: Custom User Palette (Deep Blue, Mint, Purple, Yellow) -->
+<!-- Application Structure Plan: Designed as a top-down financial narrative for a CFO. 1) 'The Big Sell': A high-level waterfall chart showing max investment vs. min ROI to frame the net positive outcome. 2) 'Interactive Dashboard': A tabbed interface (Summary, Investment, ROI, Details) to allow exploration. 'Summary' shows top-line KPIs. 'Investment' & 'ROI' use bar charts to break down the totals. 'Details' provides a card-based grid for every initiative. This structure prioritizes the financial argument first, then provides layered, on-demand drill-downs, which is ideal for an executive audience. -->
+<!-- Visualization & Content Choices:
+    - Report Info: Total Investment ($1.01M max) vs. Total ROI ($15M min). Goal: Show net upside. Viz: Waterfall Chart (floating bar). Interaction: Tooltips. Justification: Directly answers user's 'waterfall' request and CFO 'bottom line' focus. Library: Chart.js.
+    - Report Info: 4 Key Metrics (Investment, ROI, Timeline, Realization). Goal: Inform high-level summary. Viz: 4 KPI Cards (HTML/Tailwind). Interaction: None. Justification: Standard dashboard element for quick summary.
+    - Report Info: Investment Components ($ ranges, hour totals). Goal: Detail investment. Viz: Two horizontal bar charts (one for $ ranges, one for hours). Interaction: Tooltips. Justification: Separates capital costs from resource effort, which is a key financial distinction. Chart.js.
+    - Report Info: ROI Components ($ by initiative). Goal: Detail upside. Viz: Horizontal bar chart. Interaction: Tooltips. Justification: Clearly attributes ROI to specific 'wins'. Chart.js.
+    - Report Info: All 7 initiatives details. Goal: Provide full drill-down. Viz: HTML/Tailwind card grid. Interaction: None (static text). Justification: 'Lowest level' of detail for full transparency.
+    - NO SVG/Mermaid used. -->
+<!-- CONFIRMATION: NO SVG graphics used. NO Mermaid JS used. -->
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>AI Initiative Financial Summary</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
+    <style>
+        body {
+            font-family: 'Inter', sans-serif;
+        }
+        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap');
+        
+        .chart-container {
+            position: relative;
+            width: 100%;
+            max-width: 800px;
+            margin-left: auto;
+            margin-right: auto;
+            height: 400px;
+            max-height: 50vh;
+        }
+        
+        .chart-container-horizontal {
+            position: relative;
+            width: 100%;
+            max-width: 800px;
+            margin-left: auto;
+            margin-right: auto;
+            height: 350px;
+            max-height: 50vh;
+        }
+
+        .modal {
+            transition: opacity 0.25s ease;
+        }
+        .modal-content {
+            transition: transform 0.25s ease;
+        }
+
+        @media (max-width: 768px) {
+            .chart-container {
+                height: 350px;
+                max-height: 60vh;
+            }
+            .chart-container-horizontal {
+                height: 400px;
+            }
+        }
+    </style>
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    colors: {
+                        'theme-blue': '#0053a1',
+                        'theme-mint': '#6dd4bc',
+                        'theme-purple': '#663399',
+                        'theme-yellow': '#f1dd39',
+                    }
+                }
+            }
+        }
+    </script>
+</head>
+<body class="bg-gray-50 text-gray-800">
+
+    <main class="max-w-7xl mx-auto p-4 md:p-8">
+        
+        <header class="text-center mb-12">
+            <h1 class="text-4xl font-bold text-gray-900 mb-2">AI Initiative Financial Executive Summary</h1>
+            <p class="text-xl text-gray-600">An interactive breakdown of investments, costs, and expected returns.</p>
+        </header>
+
+        <section id="waterfall-section" class="mb-16">
+            <h2 class="text-3xl font-semibold text-center text-gray-900 mb-4">The Financial "Bottom Line": Investment vs. Return</h2>
+            <p class="text-lg text-gray-700 text-center max-w-3xl mx-auto mb-8">
+                Select a view to see the financial story. The "Summary" view shows the total portfolio investment vs. total return. The "Itemized" view breaks down the costs and returns for each use case.
+            </p>
+            
+            <div class="flex flex-wrap justify-center gap-2 md:gap-4 mb-8" role="tablist">
+                <button id="waterfallSummaryBtn" role="tab" class="tab-button-wf bg-theme-blue text-white py-2 px-5 rounded-lg font-medium transition-all duration-300 shadow-md hover:bg-opacity-90">
+                    Summary Waterfall
+                </button>
+                <button id="waterfallItemizedBtn" role="tab" class="tab-button-wf bg-white text-theme-blue py-2 px-5 rounded-lg font-medium transition-all duration-300 border border-theme-blue hover:bg-theme-blue/10">
+                    Itemized Waterfall
+                </button>
+            </div>
+
+            <div id="waterfallSummaryView" class="tab-content-wf">
+                <div class="chart-container bg-white p-4 rounded-lg shadow-lg">
+                    <canvas id="waterfallChart"></canvas>
+                </div>
+            </div>
+
+            <div id="waterfallItemizedView" class="tab-content-wf hidden">
+                <div class="chart-container bg-white p-4 rounded-lg shadow-lg">
+                    <canvas id="waterfallByCaseChart"></canvas>
+                </div>
+            </div>
+        </section>
+
+        <section id="timeline-section" class="mb-16">
+            <h2 class="text-3xl font-semibold text-center text-gray-900 mb-4">The Breakeven Story: Cost vs. Benefit Over Time</h2>
+            <p class="text-lg text-gray-700 text-center max-w-3xl mx-auto mb-8">
+                This chart projects the cumulative investment against the cumulative benefits over the first year. It models the 6-month implementation for the initial investment, plus ongoing annual costs. Benefits are projected to begin after 6 months, leading to a rapid payback period and significant positive return by the end of Year 1.
+            </p>
+            <div class="chart-container bg-white p-4 rounded-lg shadow-lg">
+                <canvas id="timelineChart"></canvas>
+            </div>
+        </section>
+
+        <section id="portfolio-mix-section" class="mb-16">
+            <h2 class="text-3xl font-semibold text-center text-gray-900 mb-4">The Strategic Portfolio Mix</h2>
+            <div class="grid grid-cols-1 lg:grid-cols-2 gap-16 items-center">
+                
+                <div>
+                    <h3 class="text-2xl font-semibold text-center text-gray-900 mb-6">Portfolio Balance: Investment vs. Return</h3>
+                    <p class="text-lg text-gray-700 text-center max-w-xl mx-auto mb-8">
+                        This shows *how* our capital is allocated. The vast majority of the initial capital (left chart) is for "AI Foundation," which is the critical enabler. This foundational spend unlocks 100% of our returns (right chart), which are driven entirely by the "Quick Win" and "Strategic" projects.
+                    </p>
+                </div>
+                
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-8">
+                    <div>
+                        <h4 class="text-xl font-semibold text-center text-gray-800 mb-3">Investment by Category (Capital)</h4>
+                        <div class="chart-container-horizontal h-[300px]">
+                            <canvas id="investmentMixChart"></canvas>
+                        </div>
+                    </div>
+                    <div>
+                        <h4 class="text-xl font-semibold text-center text-gray-800 mb-3">ROI by Category (Annual)</h4>
+                        <div class="chart-container-horizontal h-[300px]">
+                            <canvas id="roiMixChart"></canvas>
+                        </div>
+                    </div>
+                </div>
+
+            </div>
+        </section>
+
+        <section id="efficiency-section" class="mb-16">
+            <h2 class="text-3xl font-semibold text-center text-gray-900 mb-4">Project Efficiency Matrix</h2>
+            <p class="text-lg text-gray-700 text-center max-w-3xl mx-auto mb-8">
+                This chart visualizes the "bang for the buck" for the four projects that generate direct ROI, mapping their *initial resource effort (hours)* against their *projected annual ROI*.
+                <br><br>
+                <strong class="text-gray-800">Note:</strong> The "AI Foundation" projects (Governance, Literacy, Tech Prep, Dev Tools) are not shown here. Their value is in enabling these returns, not generating them directly, and they have $0 direct ROI.
+            </p>
+            <div class="chart-container bg-white p-4 rounded-lg shadow-lg">
+                <canvas id="efficiencyChart"></canvas>
+            </div>
+        </section>
+
+        <section id="dashboard-section">
+            <h2 class="text-3xl font-semibold text-center text-gray-900 mb-4">AI Initiative: Detailed Dashboard</h2>
+            
+            <div class="flex flex-wrap justify-center gap-2 md:gap-4 mb-8" role="tablist">
+                <button id="summaryBtn" role="tab" class="tab-button bg-theme-blue text-white py-2 px-5 rounded-lg font-medium transition-all duration-300 shadow-md hover:bg-opacity-90">
+                    Summary KPIs
+                </button>
+                <button id="investBtn" role="tab" class="tab-button bg-white text-theme-blue py-2 px-5 rounded-lg font-medium transition-all duration-300 border border-theme-blue hover:bg-theme-blue/10">
+                    Investment Breakdown
+                </button>
+                <button id="roiBtn" role="tab" class="tab-button bg-white text-theme-blue py-2 px-5 rounded-lg font-medium transition-all duration-300 border border-theme-blue hover:bg-theme-blue/10">
+                    ROI Breakdown
+                </button>
+                <button id="detailsBtn" role="tab" class="tab-button bg-white text-theme-blue py-2 px-5 rounded-lg font-medium transition-all duration-300 border border-theme-blue hover:bg-theme-blue/10">
+                    Use Case Details
+                </button>
+                <button id="cfoBtn" role="tab" class="tab-button bg-white text-theme-blue py-2 px-5 rounded-lg font-medium transition-all duration-300 border border-theme-blue hover:bg-theme-blue/10">
+                    ✨ CFO Talking Points
+                </button>
+            </div>
+
+            <div id="dashboard-content" class="bg-white p-6 md:p-10 rounded-lg shadow-xl">
+                
+                <div id="summaryView" class="tab-content">
+                    <p class="text-lg text-gray-700 text-center mb-8">
+                        This summary shows the total projected figures for the entire Phase 1 AI portfolio, providing a high-level overview of the complete plan.
+                    </p>
+                    <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+                        <div class="bg-gray-100 rounded-lg shadow-md p-6 text-center">
+                            <h3 class="text-sm font-semibold text-gray-500 uppercase tracking-wider">Total Investment</h3>
+                            <p class="text-4xl font-bold text-theme-blue mt-2">$394K - $1.01M</p>
+                            <p class="text-sm text-gray-600 mt-1">Initial Capital & Resources</p>
+                        </div>
+                        <div class="bg-gray-100 rounded-lg shadow-md p-6 text-center">
+                            <h3 class="text-sm font-semibold text-gray-500 uppercase tracking-wider">Expected Annual ROI</h3>
+                            <p class="text-4xl font-bold text-theme-mint mt-2">$15M - $26M</p>
+                            <p class="text-sm text-gray-600 mt-1">Projected Annual Return</p>
+                        </div>
+                        <div class="bg-gray-100 rounded-lg shadow-md p-6 text-center">
+                            <h3 class="text-sm font-semibold text-gray-500 uppercase tracking-wider">Implementation Timeline</h3>
+                            <p class="text-4xl font-bold text-gray-900 mt-2">5-6 Months</p>
+                            <p class="text-sm text-gray-600 mt-1">For Phase 1 Completion</p>
+                        </div>
+                        <div class="bg-gray-100 rounded-lg shadow-md p-6 text-center">
+                            <h3 class="text-sm font-semibold text-gray-500 uppercase tracking-wider">Benefits Realization</h3>
+                            <p class="text-4xl font-bold text-gray-900 mt-2">&lt; 6 Months</p>
+                            <p class="text-sm text-gray-600 mt-1">Time to Initial Value</p>
+                        </div>
+                    </div>
+                </div>
+                
+                <div id="investView" class="tab-content hidden">
+                    <p class="text-lg text-gray-700 text-center mb-8">
+                        The total investment is broken down into initial capital costs (hardware and tools) and the initial resource effort (measured in hours). This separates the direct cash outlay from the internal time commitment.
+                    </p>
+                    <div class="grid grid-cols-1 lg:grid-cols-2 gap-10">
+                        <div>
+                            <h3 class="text-xl font-semibold text-center text-gray-900 mb-4">Initial Capital Investment (Ranges)</h3>
+                            <div class="chart-container-horizontal">
+                                <canvas id="investmentCapitalChart"></canvas>
+                            </div>
+                        </div>
+                        <div>
+                            <h3 class="text-xl font-semibold text-center text-gray-900 mb-4">Initial Resource Effort (Hours)</h3>
+                            <div class="chart-container-horizontal">
+                                <canvas id="investmentHoursChart"></canvas>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <div id="roiView" class="tab-content hidden">
+                    <p class="text-lg text-gray-700 text-center mb-8">
+                        The projected annual Return on Investment (ROI) is driven by "Quick Win" and "Strategic Value" initiatives. This chart details the expected returns from each key use case.
+                    </p>
+                    <div class="chart-container">
+                        <canvas id="roiChart"></canvas>
+                    </div>
+                </div>
+
+                <div id="detailsView" class="tab-content hidden">
+                    <p class="text-lg text-gray-700 text-center mb-8">
+                        Explore the detailed breakdown for each of the seven core initiatives in the Phase 1 portfolio, categorized by their strategic purpose.
+                    </p>
+                    <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                        
+                        <div class="bg-theme-blue/10 rounded-lg shadow-lg p-6 border-l-4 border-theme-blue flex flex-col justify-between">
+                            <div>
+                                <span class="inline-block bg-theme-blue/20 text-theme-blue text-xs font-medium px-2.5 py-0.5 rounded-full mb-3">AI Foundation</span>
+                                <h3 class="text-xl font-semibold text-gray-900 mb-3">AI Governance Council</h3>
+                                <p class="text-sm text-gray-700"><strong class="text-gray-900">Initial:</strong> 440 hours</p>
+                                <p class="text-sm text-gray-700"><strong class="text-gray-900">Ongoing:</strong> 1,196 hours annually</p>
+                            </div>
+                            <button class="risk-analysis-btn mt-4 text-sm text-theme-blue font-medium hover:text-opacity-80" data-case-title="AI Governance Council" data-case-details="Initial: 440 hours, Ongoing: 1,196 hours annually. This is a foundational governance body.">
+                                ✨ Analyze Risks
+                            </button>
+                        </div>
+                        
+                        <div class="bg-theme-blue/10 rounded-lg shadow-lg p-6 border-l-4 border-theme-blue flex flex-col justify-between">
+                            <div>
+                                <span class="inline-block bg-theme-blue/20 text-theme-blue text-xs font-medium px-2.5 py-0.5 rounded-full mb-3">AI Foundation</span>
+                                <h3 class="text-xl font-semibold text-gray-900 mb-3">AI Literacy & Enablement</h3>
+                                <p class="text-sm text-gray-700"><strong class="text-gray-900">Initial:</strong> 4,090 hrs + $14.5K + ($108K-$324K)</p>
+                                <p class="text-sm text-gray-700"><strong class="text-gray-900">Ongoing:</strong> 6,200 hrs + $40K + ($108K-$324K)</p>
+                            </div>
+                            <button class="risk-analysis-btn mt-4 text-sm text-theme-blue font-medium hover:text-opacity-80" data-case-title="AI Literacy & Enablement" data-case-details="Initial: 4,090 hrs + $14.5K + ($108K-$324K), Ongoing: 6,200 hrs + $40K + ($108K-$324K). Broad-based training and tool access.">
+                                ✨ Analyze Risks
+                            </button>
+                        </div>
+
+                        <div class="bg-theme-blue/10 rounded-lg shadow-lg p-6 border-l-4 border-theme-blue flex flex-col justify-between">
+                            <div>
+                                <span class="inline-block bg-theme-blue/20 text-theme-blue text-xs font-medium px-2.5 py-0.5 rounded-full mb-3">AI Foundation</span>
+                                <h3 class="text-xl font-semibold text-gray-900 mb-3">Tech & Data Preparation</h3>
+                                <p class="text-sm text-gray-700"><strong class="text-gray-900">Initial:</strong> 1,200 hrs + ($100K-$500K)</p>
+                                <p class="text-sm text-gray-700"><strong class="text-gray-900">Ongoing:</strong> 160 hrs + ($100K-$500K)</p>
+                            </div>
+                            <button class="risk-analysis-btn mt-4 text-sm text-theme-blue font-medium hover:text-opacity-80" data-case-title="Tech & Data Preparation" data-case-details="Initial: 1,200 hrs + ($100K-$500K), Ongoing: 160 hrs + ($100K-$500K). Hardware and data infrastructure setup.">
+                                ✨ Analyze Risks
+                            </button>
+                        </div>
+                        
+                        <div class="bg-theme-blue/10 rounded-lg shadow-lg p-6 border-l-4 border-theme-blue flex flex-col justify-between">
+                            <div>
+                                <span class="inline-block bg-theme-blue/20 text-theme-blue text-xs font-medium px-2.5 py-0.5 rounded-full mb-3">AI Foundation</span>
+                                <h3 class="text-xl font-semibold text-gray-900 mb-3">AI Development Tools</h3>
+                                <p class="text-sm text-gray-700"><strong class="text-gray-900">Initial:</strong> 160 hours</p>
+                                <p class="text-sm text-gray-700"><strong class="text-gray-900">Ongoing:</strong> $48K Annually</p>
+                            </div>
+                            <button class="risk-analysis-btn mt-4 text-sm text-theme-blue font-medium hover:text-opacity-80" data-case-title="AI Development Tools" data-case-details="Initial: 160 hours, Ongoing: $48K Annually. Licensing developer tools.">
+                                ✨ Analyze Risks
+                            </button>
+                        </div>
+
+                        <div class="bg-theme-mint/10 rounded-lg shadow-lg p-6 border-l-4 border-theme-mint flex flex-col justify-between">
+                            <div>
+                                <span class="inline-block bg-theme-mint/20 text-theme-mint-800 text-xs font-medium px-2.5 py-0.5 rounded-full mb-3">Quick Win</span>
+                                <h3 class="text-xl font-semibold text-gray-900 mb-3">Proposal & SOW Automation</h3>
+                                <p class="text-sm text-gray-700"><strong class="text-gray-900">Initial:</strong> < $1K (Tool)</p>
+                                <p class="text-sm font-semibold text-theme-mint-700 mt-2"><strong class="text-theme-mint-800">ROI:</strong> $3.4M Annually</p>
+                            </div>
+                            <button class="risk-analysis-btn mt-4 text-sm text-theme-blue font-medium hover:text-opacity-80" data-case-title="Proposal & SOW Automation" data-case-details="Initial: < $1K, ROI: $3.4M Annually. This is a high-return 'Quick Win'.">
+                                ✨ Analyze Risks
+                            </button>
+                        </div>
+
+                        <div class="bg-theme-mint/10 rounded-lg shadow-lg p-6 border-l-4 border-theme-mint flex flex-col justify-between">
+                            <div>
+                                <span class="inline-block bg-theme-mint/20 text-theme-mint-800 text-xs font-medium px-2.5 py-0.5 rounded-full mb-3">Quick Win</span>
+                                <h3 class="text-xl font-semibold text-gray-900 mb-3">AI Meeting Assistant</h3>
+                                <p class="text-sm text-gray-700"><strong class="text-gray-900">Initial:</strong> 160 hours</p>
+                                <p class="text-sm text-gray-700"><strong class="text-gray-900">Ongoing:</strong> $72K Annually</p>
+                                <p class="text-sm font-semibold text-theme-mint-700 mt-2"><strong class="text-theme-mint-800">ROI:</strong> $2.34M Annually</p>
+                            </div>
+                            <button class="risk-analysis-btn mt-4 text-sm text-theme-blue font-medium hover:text-opacity-80" data-case-title="AI Meeting Assistant" data-case-details="Initial: 160 hours, Ongoing: $72K Annually, ROI: $2.34M Annually. Productivity tool.">
+                                ✨ Analyze Risks
+                            </button>
+                        </div>
+
+                        <div class="bg-theme-purple/10 rounded-lg shadow-lg p-6 border-l-4 border-theme-purple flex flex-col justify-between">
+                            <div>
+                                <span class="inline-block bg-theme-purple/20 text-theme-purple-800 text-xs font-medium px-2.5 py-0.5 rounded-full mb-3">Strategic Value</span>
+                                <h3 class="text-xl font-semibold text-gray-900 mb-3">Mktg & Sales Enablement</h3>
+                                <p class="text-sm text-gray-700"><strong class="text-gray-900">Initial:</strong> 680 hours</p>
+                                <p class="text-sm text-gray-700"><strong class="text-gray-900">Ongoing:</strong> 800 hours annually</p>
+                                <p class="text-sm font-semibold text-theme-mint-700 mt-2"><strong class="text-theme-mint-800">ROI:</strong> $2.5M Annually</p>
+                            </div>
+                            <button class="risk-analysis-btn mt-4 text-sm text-theme-blue font-medium hover:text-opacity-80" data-case-title="Mktg & Sales Enablement" data-case-details="Initial: 680 hours, Ongoing: 800 hours annually, ROI: $2.5M Annually. Revenue generation.">
+                                ✨ Analyze Risks
+                            </button>
+                        </div>
+
+                        <div class="bg-theme-purple/10 rounded-lg shadow-lg p-6 border-l-4 border-theme-purple flex flex-col justify-between">
+                            <div>
+                                <span class="inline-block bg-theme-purple/20 text-theme-purple-800 text-xs font-medium px-2.5 py-0.5 rounded-full mb-3">Strategic Value</span>
+                                <h3 class="text-xl font-semibold text-gray-900 mb-3">Strategic AI Advisory</h3>
+                                <p class="text-sm text-gray-700"><strong class="text-gray-900">Initial:</strong> 280 hours</p>
+                                <p class="text-sm font-semibold text-theme-mint-700 mt-2"><strong class="text-theme-mint-800">ROI:</strong> < $1.8M Annually</p>
+                            </div>
+                            <button class="risk-analysis-btn mt-4 text-sm text-theme-blue font-medium hover:text-opacity-80" data-case-title="Strategic AI Advisory Services" data-case-details="Initial: 280 hours, ROI: < $1.8M Annually. New service offering.">
+                                ✨ Analyze Risks
+                            </button>
+                        </div>
+
+                    </div>
+                </div>
+
+                <div id="cfoView" class="tab-content hidden">
+                    <p class="text-lg text-gray-700 text-center mb-8">
+                        Generate concise, persuasive talking points for your CFO meeting. This ✨ AI-powered feature synthesizes the key financial data into a compelling narrative focused on investment, return, and strategic value.
+                    </p>
+                    <div class="text-center">
+                        <button id="generateTalkingPointsBtn" class="bg-theme-blue text-white py-3 px-6 rounded-lg font-semibold text-lg transition-all duration-300 shadow-md hover:bg-opacity-90 active:scale-95">
+                            ✨ Generate Talking Points
+                        </button>
+                    </div>
+                    <div id="cfoLoading" class="hidden text-center my-6">
+                        <svg class="animate-spin h-8 w-8 text-theme-blue mx-auto" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                            <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+                            <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                        </svg>
+                        <p class="text-gray-600 mt-2">Generating... this may take a moment.</p>
+                    </div>
+                    <div id="cfoResult" class="mt-8 p-6 bg-gray-100 rounded-lg shadow-inner hidden min-h-[150px]">
+                        <!-- Generated content will appear here -->
+                    </div>
+                </div>
+
+            </div>
+        </section>
+
+    </main>
+
+    <!-- Risk Analysis Modal -->
+    <div id="riskModal" class="modal fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-50 opacity-0 pointer-events-none">
+        <div class="modal-content bg-white rounded-lg shadow-2xl w-11/12 max-w-2xl p-6 md:p-8 transform scale-95">
+            <div class="flex justify-between items-center mb-4">
+                <h3 class="text-2xl font-semibold text-gray-900" id="riskModalTitle">Risk Analysis</h3>
+                <button id="closeRiskModalBtn" class="text-gray-400 hover:text-gray-600">
+                    <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path></svg>
+                </button>
+            </div>
+            <div id="riskModalLoading" class="hidden text-center my-6">
+                <svg class="animate-spin h-8 w-8 text-theme-blue mx-auto" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                    <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+                    <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                </svg>
+                <p class="text-gray-600 mt-2">Analyzing... this may take a moment.</p>
+            </div>
+            <div id="riskModalResult" class="prose prose-blue max-w-none text-gray-700 max-h-[60vh] overflow-y-auto">
+                <!-- Generated content will appear here -->
+            </div>
+        </div>
+    </div>
+
+    <script>
+        document.addEventListener('DOMContentLoaded', () => {
+            
+            const themeColors = {
+                blue: '#0053a1',
+                mint: '#6dd4bc',
+                purple: '#663399',
+                yellow: '#f1dd39',
+            };
+
+            const dashboardTabs = [
+                { btn: document.getElementById('summaryBtn'), view: document.getElementById('summaryView') },
+                { btn: document.getElementById('investBtn'), view: document.getElementById('investView') },
+                { btn: document.getElementById('roiBtn'), view: document.getElementById('roiView') },
+                { btn: document.getElementById('detailsBtn'), view: document.getElementById('detailsView') },
+                { btn: document.getElementById('cfoBtn'), view: document.getElementById('cfoView') }
+            ];
+
+            const waterfallTabs = [
+                { btn: document.getElementById('waterfallSummaryBtn'), view: document.getElementById('waterfallSummaryView') },
+                { btn: document.getElementById('waterfallItemizedBtn'), view: document.getElementById('waterfallItemizedView') }
+            ];
+
+            const activeBtnClasses = 'bg-theme-blue text-white shadow-md hover:bg-opacity-90'.split(' ');
+            const inactiveBtnClasses = 'bg-white text-theme-blue border border-theme-blue hover:bg-theme-blue/10'.split(' ');
+
+            function setupTabs(tabs, activeClasses, inactiveClasses) {
+                tabs.forEach(tab => {
+                    if (!tab.btn) {
+                        return;
+                    }
+                    tab.btn.addEventListener('click', () => {
+                        tabs.forEach(t => {
+                            if (!t.btn || !t.view) return;
+                            if (t.view.id === tab.view.id) {
+                                t.view.classList.remove('hidden');
+                                t.btn.classList.remove(...inactiveClasses);
+                                t.btn.classList.add(...activeClasses);
+                                t.btn.setAttribute('aria-selected', 'true');
+                            } else {
+                                t.view.classList.add('hidden');
+                                t.btn.classList.add(...inactiveClasses);
+                                t.btn.classList.remove(...activeClasses);
+                                t.btn.setAttribute('aria-selected', 'false');
+                            }
+                        });
+                    });
+                });
+            }
+            
+            setupTabs(dashboardTabs, activeBtnClasses, inactiveBtnClasses);
+            setupTabs(waterfallTabs, activeBtnClasses, inactiveBtnClasses);
+
+            const generateTalkingPointsBtn = document.getElementById('generateTalkingPointsBtn');
+            const cfoLoading = document.getElementById('cfoLoading');
+            const cfoResult = document.getElementById('cfoResult');
+            const riskModal = document.getElementById('riskModal');
+            const riskModalTitle = document.getElementById('riskModalTitle');
+            const riskModalLoading = document.getElementById('riskModalLoading');
+            const riskModalResult = document.getElementById('riskModalResult');
+            const closeRiskModalBtn = document.getElementById('closeRiskModalBtn');
+            const riskAnalysisButtons = document.querySelectorAll('.risk-analysis-btn');
+
+            const formatCurrency = (value) => {
+                if (value >= 1000000 || value <= -1000000) {
+                    return (value / 1000000).toFixed(2) + 'M';
+                }
+                if (value >= 1000 || value <= -1000) {
+                    return (value / 1000).toFixed(1) + 'K';
+                }
+                return value;
+            };
+            
+            const formatCurrencyTooltip = (value) => {
+                return new Intl.NumberFormat('en-US', {
+                    style: 'currency',
+                    currency: 'USD',
+                    minimumFractionDigits: 0,
+                    maximumFractionDigits: 0
+                }).format(value);
+            };
+
+            async function exponentialBackoffFetch(url, options, retries = 5, delay = 1000) {
+                try {
+                    const response = await fetch(url, options);
+                    if (!response.ok) {
+                        if (response.status === 429 && retries > 0) {
+                            await new Promise(resolve => setTimeout(resolve, delay));
+                            return exponentialBackoffFetch(url, options, retries - 1, delay * 2);
+                        }
+                        throw new Error(`HTTP error! status: ${response.status}`);
+                    }
+                    return response.json();
+                } catch (error) {
+                    if (retries > 0) {
+                        await new Promise(resolve => setTimeout(resolve, delay));
+                        return exponentialBackoffFetch(url, options, retries - 1, delay * 2);
+                    } else {
+                        throw error;
+                    }
+                }
+            }
+
+            async function handleGenerateTalkingPoints() {
+                cfoLoading.classList.remove('hidden');
+                cfoResult.classList.add('hidden');
+                cfoResult.innerHTML = '';
+
+                const systemPrompt = "You are a Chief of Staff preparing a 'pre-read' for your CFO for an upcoming AI strategy meeting. Your task is to generate 3-5 concise, hard-hitting bullet points. Focus on the *'so what'* for the CFO: the investment rationale, the scale of the return, and the key value drivers. Be direct and persuasive. Format the output as an HTML unordered list (`<ul>` with `<li>` elements).";
+                
+                const userQuery = "Generate talking points based on this data: Total Investment: $394K - $1.01M. Total Expected Annual ROI: $15M - $26M. Key initiatives include 'Proposal & SOW Automation' (ROI: $3.4M), 'AI Meeting Assistant' (ROI: $2.34M), and 'Mktg & Sales Enablement' (ROI: $2.5M). The plan is to build a foundation while securing quick wins. Benefits realization is expected in under 6 months.";
+
+                const apiKey = ""; 
+                const apiUrl = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash-preview-09-2025:generateContent?key=${apiKey}`;
+
+                const payload = {
+                    contents: [{ parts: [{ text: userQuery }] }],
+                    systemInstruction: {
+                        parts: [{ text: systemPrompt }]
+                    },
+                };
+
+                try {
+                    const result = await exponentialBackoffFetch(apiUrl, {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify(payload)
+                    });
+
+                    const candidate = result.candidates?.[0];
+                    if (candidate && candidate.content?.parts?.[0]?.text) {
+                        cfoResult.innerHTML = candidate.content.parts[0].text;
+                    } else {
+                        throw new Error('No valid response from API.');
+                    }
+                } catch (error) {
+                    cfoResult.innerHTML = `<p class="text-red-600">An error occurred while generating talking points. Please try again.</p>`;
+                } finally {
+                    cfoLoading.classList.add('hidden');
+                    cfoResult.classList.remove('hidden');
+                }
+            }
+
+            function openRiskModal() {
+                riskModal.classList.remove('opacity-0', 'pointer-events-none');
+                riskModal.querySelector('.modal-content').classList.remove('scale-95');
+            }
+
+            function closeRiskModal() {
+                riskModal.classList.add('opacity-0', 'pointer-events-none');
+                riskModal.querySelector('.modal-content').classList.add('scale-95');
+            }
+
+            async function handleRiskAnalysis(event) {
+                const button = event.currentTarget;
+                const title = button.dataset.caseTitle;
+                const details = button.dataset.caseDetails;
+
+                riskModalTitle.textContent = `Risk Analysis: ${title}`;
+                riskModalLoading.classList.remove('hidden');
+                riskModalResult.classList.add('hidden');
+                riskModalResult.innerHTML = '';
+                openRiskModal();
+
+                const systemPrompt = `You are a corporate risk analyst advising a CFO. Your task is to analyze a proposed AI initiative and identify 2-3 key potential risks (financial, operational, adoption) and a brief mitigation strategy for each. Be concise, pragmatic, and CFO-focused. Format the output as an HTML unordered list (\`<ul>\`) with nested \`<strong>\` tags for risk titles.`;
+                
+                const userQuery = `Analyze the risks for the initiative: "${title}". Key details: ${details}.`;
+
+                const apiKey = ""; 
+                const apiUrl = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash-preview-09-2025:generateContent?key=${apiKey}`;
+
+                const payload = {
+                    contents: [{ parts: [{ text: userQuery }] }],
+                    systemInstruction: {
+                        parts: [{ text: systemPrompt }]
+                    },
+                };
+
+                try {
+                    const result = await exponentialBackoffFetch(apiUrl, {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify(payload)
+                    });
+
+                    const candidate = result.candidates?.[0];
+                    if (candidate && candidate.content?.parts?.[0]?.text) {
+                        riskModalResult.innerHTML = candidate.content.parts[0].text;
+                    } else {
+                        throw new Error('No valid response from API.');
+                    }
+                } catch (error) {
+                    riskModalResult.innerHTML = `<p class="text-red-600">An error occurred while generating analysis. Please try again.</p>`;
+                } finally {
+                    riskModalLoading.classList.add('hidden');
+                    riskModalResult.classList.remove('hidden');
+                }
+            }
+
+            function initWaterfallChart() {
+                const ctx = document.getElementById('waterfallChart').getContext('2d');
+                if (!ctx) return;
+                const investment = -1010000;
+                const roi = 15000000;
+                const net = investment + roi;
+
+                new Chart(ctx, {
+                    type: 'bar',
+                    data: {
+                        labels: ['Max Initial Investment', 'Min Annual ROI', 'Min Net Position'],
+                        datasets: [{
+                            label: 'Financial Flow',
+                            data: [
+                                [0, investment],
+                                [investment, net],
+                                [0, net]
+                            ],
+                            backgroundColor: [
+                                themeColors.purple,
+                                themeColors.mint,
+                                themeColors.yellow
+                            ],
+                            borderColor: [
+                                themeColors.purple,
+                                themeColors.mint,
+                                themeColors.yellow
+                            ],
+                            borderWidth: 1
+                        }]
+                    },
+                    options: {
+                        responsive: true,
+                        maintainAspectRatio: false,
+                        indexAxis: 'x',
+                        scales: {
+                            y: {
+                                beginAtZero: false,
+                                ticks: {
+                                    callback: (value) => formatCurrency(value)
+                                }
+                            }
+                        },
+                        plugins: {
+                            legend: {
+                                display: false
+                            },
+                            tooltip: {
+                                callbacks: {
+                                    label: function(context) {
+                                        const val = context.raw;
+                                        let label = '';
+                                        if(context.label === 'Max Initial Investment') {
+                                            label = `Cost: ${formatCurrencyTooltip(val[1] - val[0])}`;
+                                        } else if (context.label === 'Min Annual ROI') {
+                                            label = `Return: ${formatCurrencyTooltip(val[1] - val[0])}`;
+                                        } else {
+                                            label = `Net: ${formatCurrencyTooltip(val[1])}`;
+                                        }
+                                        return label;
+                                    }
+                                }
+                            }
+                        }
+                    }
+                });
+            }
+
+            function initWaterfallByCaseChart() {
+                const ctx = document.getElementById('waterfallByCaseChart').getContext('2d');
+                if (!ctx) return;
+                
+                const costs = {
+                    tech: -500000,
+                    literacy: -338500,
+                    devTools: -48000,
+                    meetingAsst: -72000,
+                    proposalTool: -1000
+                };
+                
+                const rois = {
+                    proposal: 3400000,
+                    mktgSales: 2500000,
+                    meetingAsst: 2340000,
+                    strategic: 1800000
+                };
+
+                let runningTotal = 0;
+                const dataPoints = [];
+                
+                runningTotal += costs.tech;
+                dataPoints.push([runningTotal - costs.tech, runningTotal]);
+                
+                runningTotal += costs.literacy;
+                dataPoints.push([runningTotal - costs.literacy, runningTotal]);
+
+                runningTotal += costs.devTools;
+                dataPoints.push([runningTotal - costs.devTools, runningTotal]);
+
+                runningTotal += costs.meetingAsst;
+                dataPoints.push([runningTotal - costs.meetingAsst, runningTotal]);
+
+                runningTotal += costs.proposalTool;
+                dataPoints.push([runningTotal - costs.proposalTool, runningTotal]);
+                
+                const totalCost = runningTotal;
+                dataPoints.push([0, totalCost]);
+
+                runningTotal += rois.proposal;
+                dataPoints.push([runningTotal - rois.proposal, runningTotal]);
+
+                runningTotal += rois.mktgSales;
+                dataPoints.push([runningTotal - rois.mktgSales, runningTotal]);
+                
+                runningTotal += rois.meetingAsst;
+                dataPoints.push([runningTotal - rois.meetingAsst, runningTotal]);
+                
+                runningTotal += rois.strategic;
+                dataPoints.push([runningTotal - rois.strategic, runningTotal]);
+
+                const finalNet = runningTotal;
+                dataPoints.push([0, finalNet]);
+
+                new Chart(ctx, {
+                    type: 'bar',
+                    data: {
+                        labels: [
+                            'Cost: Tech & Data Prep (Max)',
+                            'Cost: AI Literacy (Max)',
+                            'Cost: AI Dev Tools (Annual)',
+                            'Cost: Meeting Asst (Annual)',
+                            'Cost: Proposal Tool (Max)',
+                            'Total Initial Cost',
+                            'ROI: Proposal & SOW',
+                            'ROI: Mktg & Sales',
+                            'ROI: Meeting Asst',
+                            'ROI: Strategic Advisory',
+                            'Itemized Net Position'
+                        ],
+                        datasets: [{
+                            label: 'Financial Flow',
+                            data: dataPoints,
+                            backgroundColor: [
+                                themeColors.purple, // cost
+                                themeColors.purple, // cost
+                                themeColors.purple, // cost
+                                themeColors.purple, // cost
+                                themeColors.purple, // cost
+                                themeColors.purple, // total cost
+                                themeColors.mint, // roi
+                                themeColors.mint, // roi
+                                themeColors.mint, // roi
+                                themeColors.mint, // roi
+                                themeColors.yellow  // final net
+                            ],
+                            borderColor: [
+                                themeColors.purple,
+                                themeColors.purple,
+                                themeColors.purple,
+                                themeColors.purple,
+                                themeColors.purple,
+                                themeColors.purple,
+                                themeColors.mint,
+                                themeColors.mint,
+                                themeColors.mint,
+                                themeColors.mint,
+                                themeColors.yellow
+                            ],
+                            borderWidth: 1
+                        }]
+                    },
+                    options: {
+                        responsive: true,
+                        maintainAspectRatio: false,
+                        indexAxis: 'x',
+                        scales: {
+                            y: {
+                                beginAtZero: false,
+                                ticks: {
+                                    callback: (value) => formatCurrency(value)
+                                }
+                            }
+                        },
+                        plugins: {
+                            legend: {
+                                display: false
+                            },
+                            tooltip: {
+                                callbacks: {
+                                    label: function(context) {
+                                        const val = context.raw;
+                                        const label = context.label;
+                                        let flowValue;
+
+                                        if (label === 'Total Initial Cost' || label === 'Itemized Net Position') {
+                                            flowValue = val[1];
+                                        } else {
+                                            flowValue = val[1] - val[0];
+                                        }
+                                        return `${label}: ${formatCurrencyTooltip(flowValue)}`;
+                                    }
+                                }
+                            }
+                        }
+                    }
+                });
+            }
+
+            function initTimelineChart() {
+                const ctx = document.getElementById('timelineChart')?.getContext('2d');
+                if (!ctx) return;
+
+                const initialInvestment = 1010000;
+                const ongoingAnnualCost = 984000;
+                const minAnnualROI = 15000000;
+                const maxAnnualROI = 26000000;
+                
+                const labels = [
+                    'Start (M0)', 'M1', 'M2', 'M3', 'M4', 'M5', 
+                    'Implementation Complete (M6)', 
+                    'M7', 'M8', 'M9', 'M10', 'M11', 'End of Year 1 (M12)'
+                ];
+                
+                const cumulativeCost = [];
+                const cumulativeBenefitMin = [];
+                const cumulativeBenefitMax = [];
+
+                let cost = 0;
+                let benefitMin = 0;
+                let benefitMax = 0;
+
+                const monthlyInitialCost = initialInvestment / 6;
+                const monthlyOngoingCost = ongoingAnnualCost / 12;
+                const monthlyBenefitMin = minAnnualROI / 12;
+                const monthlyBenefitMax = maxAnnualROI / 12;
+
+                for (let i = 0; i < 13; i++) {
+                    if (i > 0) {
+                        if (i <= 6) {
+                            cost += monthlyInitialCost;
+                        }
+                        cost += monthlyOngoingCost;
+
+                        if (i > 6) {
+                            benefitMin += monthlyBenefitMin;
+                            benefitMax += monthlyBenefitMax;
+                        }
+                    }
+                    
+                    cumulativeCost.push(cost);
+                    cumulativeBenefitMin.push(benefitMin);
+                    cumulativeBenefitMax.push(benefitMax);
+                }
+
+                new Chart(ctx, {
+                    type: 'line',
+                    data: {
+                        labels: labels,
+                        datasets: [
+                            {
+                                label: 'Cumulative Investment (Max)',
+                                data: cumulativeCost,
+                                borderColor: themeColors.purple,
+                                backgroundColor: `${themeColors.purple}33`,
+                                fill: true,
+                                tension: 0.1
+                            },
+                            {
+                                label: 'Cumulative Benefit (Min)',
+                                data: cumulativeBenefitMin,
+                                borderColor: themeColors.mint,
+                                backgroundColor: `${themeColors.mint}33`,
+                                fill: true,
+                                tension: 0.1
+                            },
+                            {
+                                label: 'Cumulative Benefit (Max)',
+                                data: cumulativeBenefitMax,
+                                borderColor: themeColors.blue,
+                                backgroundColor: `${themeColors.blue}33`,
+                                fill: true,
+                                tension: 0.1
+                            }
+                        ]
+                    },
+                    options: {
+                        responsive: true,
+                        maintainAspectRatio: false,
+                        interaction: {
+                            mode: 'index',
+                            intersect: false,
+                        },
+                        scales: {
+                            y: {
+                                beginAtZero: false,
+                                ticks: {
+                                    callback: (value) => formatCurrency(value)
+                                }
+                            },
+                            x: {
+                                grid: {
+                                    display: false
+                                }
+                            }
+                        },
+                        plugins: {
+                            title: {
+                                display: true,
+                                text: 'Year 1 Cumulative Cost vs. Benefit Projection',
+                                font: {
+                                    size: 16
+                                }
+                            },
+                            tooltip: {
+                                callbacks: {
+                                    label: function(context) {
+                                        const label = context.dataset.label || '';
+                                        const value = context.raw;
+                                        return `${label}: ${formatCurrencyTooltip(value)}`;
+                                    }
+                                }
+                            }
+                        }
+                    }
+                });
+            }
+
+            function initMixCharts() {
+                const investmentCtx = document.getElementById('investmentMixChart')?.getContext('2d');
+                if (investmentCtx) {
+                    new Chart(investmentCtx, {
+                        type: 'doughnut',
+                        data: {
+                            labels: ['AI Foundation', 'Quick Wins', 'Strategic Value'],
+                            datasets: [{
+                                label: 'Investment by Category',
+                                data: [
+                                    500000 + 338500 + 48000, // Foundation
+                                    72000 + 1000,           // Quick Wins
+                                    0                       // Strategic
+                                ],
+                                backgroundColor: [
+                                    themeColors.blue,
+                                    themeColors.mint,
+                                    themeColors.purple
+                                ],
+                                borderColor: ['#fff'],
+                                borderWidth: 2
+                            }]
+                        },
+                        options: {
+                            responsive: true,
+                            maintainAspectRatio: false,
+                            plugins: {
+                                legend: {
+                                    position: 'bottom'
+                                },
+                                tooltip: {
+                                    callbacks: {
+                                        label: function(context) {
+                                            const label = context.label || '';
+                                            const value = context.raw;
+                                            const total = context.chart.getData().datasets[0].data.reduce((a, b) => a + b, 0);
+                                            const percentage = ((value / total) * 100).toFixed(1);
+                                            return `${label}: ${formatCurrencyTooltip(value)} (${percentage}%)`;
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                    });
+                }
+
+                const roiCtx = document.getElementById('roiMixChart')?.getContext('2d');
+                if (roiCtx) {
+                    new Chart(roiCtx, {
+                        type: 'doughnut',
+                        data: {
+                            labels: ['Quick Wins', 'Strategic Value'],
+                            datasets: [{
+                                label: 'ROI by Category',
+                                data: [
+                                    3400000 + 2340000, // Quick Wins
+                                    2500000 + 1800000  // Strategic
+                                ],
+                                backgroundColor: [
+                                    themeColors.mint,
+                                    themeColors.purple
+                                ],
+                                borderColor: ['#fff'],
+                                borderWidth: 2
+                            }]
+                        },
+                        options: {
+                            responsive: true,
+                            maintainAspectRatio: false,
+                            plugins: {
+                                legend: {
+                                    position: 'bottom'
+                                },
+                                tooltip: {
+                                    callbacks: {
+                                        label: function(context) {
+                                            const label = context.label || '';
+                                            const value = context.raw;
+                                            const total = context.chart.getData().datasets[0].data.reduce((a, b) => a + b, 0);
+                                            const percentage = ((value / total) * 100).toFixed(1);
+                                            return `${label}: ${formatCurrencyTooltip(value)} (${percentage}%)`;
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                    });
+                }
+            }
+
+            function initEfficiencyChart() {
+                const ctx = document.getElementById('efficiencyChart')?.getContext('2d');
+                if (!ctx) return;
+                
+                const data = {
+                    datasets: [
+                        {
+                            label: 'AI Meeting Assistant (Quick Win)',
+                            data: [{ x: 160, y: 2340000, r: 23.4 }],
+                            backgroundColor: themeColors.blue,
+                            borderColor: themeColors.blue
+                        },
+                        {
+                            label: 'Proposal & SOW (Quick Win)',
+                            data: [{ x: 680, y: 3400000, r: 34 }],
+                            backgroundColor: themeColors.mint,
+                            borderColor: themeColors.mint
+                        },
+                        {
+                            label: 'Strategic AI Advisory (Strategic)',
+                            data: [{ x: 280, y: 1800000, r: 18 }],
+                            backgroundColor: themeColors.purple,
+                            borderColor: themeColors.purple
+                        },
+                        {
+                            label: 'Mktg & Sales Enablement (Strategic)',
+                            data: [{ x: 680, y: 2500000, r: 25 }],
+                            backgroundColor: themeColors.yellow,
+                            borderColor: themeColors.yellow
+                        }
+                    ]
+                };
+
+                new Chart(ctx, {
+                    type: 'bubble',
+                    data: data,
+                    options: {
+                        responsive: true,
+                        maintainAspectRatio: false,
+                        scales: {
+                            x: {
+                                title: {
+                                    display: true,
+                                    text: 'Initial Resource Effort (Hours)',
+                                    font: { size: 14 }
+                                }
+                            },
+                            y: {
+                                beginAtZero: true,
+                                title: {
+                                    display: true,
+                                    text: 'Projected Annual ROI ($)',
+                                    font: { size: 14 }
+                                },
+                                ticks: {
+                                    callback: (value) => formatCurrency(value)
+                                }
+                            }
+                        },
+                        plugins: {
+                            legend: {
+                                position: 'bottom'
+                            },
+                            tooltip: {
+                                callbacks: {
+                                    label: function(context) {
+                                        const label = context.dataset.label || '';
+                                        const data = context.raw;
+                                        const roiLabel = data.y > 0 ? `${formatCurrencyTooltip(data.y)} ROI` : 'Foundation';
+                                        return `${label}: ${data.x} hrs -> ${roiLabel}`;
+                                    }
+                                }
+                            }
+                        }
+                    }
+                });
+            }
+
+            function initInvestmentCharts() {
+                const capitalCtx = document.getElementById('investmentCapitalChart')?.getContext('2d');
+                if (!capitalCtx) return;
+                new Chart(capitalCtx, {
+                    type: 'bar',
+                    data: {
+                        labels: ['Tech & Data Prep', 'AI Literacy', 'Proposal Tool'],
+                        datasets: [{
+                            label: 'Capital Cost Range',
+                            data: [
+                                [100000, 500000],
+                                [122500, 338500],
+                                [0, 1000]
+                            ],
+                            backgroundColor: themeColors.blue,
+                            borderColor: themeColors.blue,
+                            borderWidth: 1
+                        }]
+                    },
+                    options: {
+                        responsive: true,
+                        maintainAspectRatio: false,
+                        indexAxis: 'y',
+                        scales: {
+                            x: {
+                                ticks: {
+                                    callback: (value) => formatCurrency(value)
+                                }
+                            }
+                        },
+                        plugins: {
+                            legend: { display: false },
+                            tooltip: {
+                                callbacks: {
+                                    label: function(context) {
+                                        const val = context.raw;
+                                        return `Range: ${formatCurrencyTooltip(val[0])} - ${formatCurrencyTooltip(val[1])}`;
+                                    }
+                                }
+                            }
+                        }
+                    }
+                });
+                
+                const hoursCtx = document.getElementById('investmentHoursChart')?.getContext('2d');
+                if (!hoursCtx) return;
+                new Chart(hoursCtx, {
+                    type: 'bar',
+                    data: {
+                        labels: ['AI Literacy', 'Tech & Data Prep', 'Mktg & Sales', 'AI Governance', 'AI Advisory', 'Dev Tools', 'Meeting Asst'],
+                        datasets: [{
+                            label: 'Initial Hours',
+                            data: [4090, 1200, 680, 440, 280, 160, 160],
+                            backgroundColor: themeColors.mint,
+                            borderColor: themeColors.mint,
+                            borderWidth: 1
+                        }]
+                    },
+                    options: {
+                        responsive: true,
+                        maintainAspectRatio: false,
+                        indexAxis: 'y',
+                        plugins: {
+                            legend: { display: false },
+                            tooltip: {
+                                callbacks: {
+                                    label: (context) => `${context.raw} hours`
+                                }
+                            }
+                        }
+                    }
+                });
+            }
+
+            function initRoiChart() {
+                const ctx = document.getElementById('roiChart')?.getContext('2d');
+                if (!ctx) return;
+                new Chart(ctx, {
+                    type: 'bar',
+                    data: {
+                        labels: ['Proposal & SOW Automation', 'Mktg & Sales Enablement', 'AI Meeting Assistant', 'Strategic AI Advisory (up to)'],
+                        datasets: [{
+                            label: 'Expected Annual ROI',
+                            data: [3400000, 2500000, 2340000, 1800000],
+                            backgroundColor: [
+                                themeColors.mint,
+                                themeColors.yellow,
+                                themeColors.blue,
+                                themeColors.purple
+                            ],
+                            borderColor: [
+                                themeColors.mint,
+                                themeColors.yellow,
+                                themeColors.blue,
+                                themeColors.purple
+                            ],
+                            borderWidth: 1
+                        }]
+                    },
+                    options: {
+                        responsive: true,
+                        maintainAspectRatio: false,
+                        indexAxis: 'y',
+                        scales: {
+                            x: {
+                                ticks: {
+                                    callback: (value) => formatCurrency(value)
+                                }
+                            }
+                        },
+                        plugins: {
+                            legend: { display: false },
+                            tooltip: {
+                                callbacks: {
+                                    label: (context) => formatCurrencyTooltip(context.raw)
+                                }
+                            }
+                        }
+                    }
+                });
+            }
+
+            initWaterfallChart();
+            initWaterfallByCaseChart();
+            initTimelineChart();
+            initMixCharts();
+            initEfficiencyChart();
+            initInvestmentCharts();
+            initRoiChart();
+            
+            if (generateTalkingPointsBtn) {
+                generateTalkingPointsBtn.addEventListener('click', handleGenerateTalkingPoints);
+            }
+            if (closeRiskModalBtn) {
+                closeRiskModalBtn.addEventListener('click', closeRiskModal);
+            }
+            if (riskModal) {
+                riskModal.addEventListener('click', (e) => {
+                    if (e.target === riskModal) {
+                        closeRiskModal();
+                    }
+                });
+            }
+            riskAnalysisButtons.forEach(btn => {
+                btn.addEventListener('click', handleRiskAnalysis);
+            });
+
+            // Set default dashboard tab to 'Summary KPIs'
+            dashboardTabs.forEach(tab => {
+                if (!tab.btn || !tab.view) return;
+                if (tab.view.id === 'summaryView') {
+                    tab.view.classList.remove('hidden');
+                    tab.btn.classList.add(...activeBtnClasses);
+                    tab.btn.classList.remove(...inactiveBtnClasses);
+                    tab.btn.setAttribute('aria-selected', 'true');
+                } else {
+                    tab.view.classList.add('hidden');
+                    tab.btn.classList.add(...inactiveBtnClasses);
+                    tab.btn.classList.remove(...activeBtnClasses);
+                    tab.btn.setAttribute('aria-selected', 'false');
+                }
+            });
+
+            // Set default waterfall tab to 'Summary Waterfall'
+            waterfallTabs.forEach(tab => {
+                if (!tab.btn || !tab.view) return;
+                if (tab.view.id === 'waterfallSummaryView') {
+                    tab.view.classList.remove('hidden');
+                    tab.btn.classList.add(...activeBtnClasses);
+                    tab.btn.classList.remove(...inactiveBtnClasses);
+                    tab.btn.setAttribute('aria-selected', 'true');
+                } else {
+                    tab.view.classList.add('hidden');
+                    tab.btn.classList.add(...inactiveBtnClasses);
+                    tab.btn.classList.remove(...activeBtnClasses);
+                    tab.btn.setAttribute('aria-selected', 'false');
+                }
+            });
+        });
+    </script>
+</body>
+</html>

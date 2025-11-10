@@ -1,0 +1,1358 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>AI Initiative Financial Dashboard</title>
+    <!-- Chosen Palette: Custom Theme (Blue, Mint, Purple, Yellow) -->
+    <!-- Application Structure Plan: A single-page dashboard with a master 3-way toggle (Capital, Total $, Hours) at the top. This toggle controls the entire dashboard's context. Below, a tabbed interface ("Dashboard", "Use Case Details", "CFO Talking Points") allows users to drill down. The "Dashboard" tab contains all the key financial visualizations (Waterfall, Timeline, Portfolio Mix, Efficiency) which dynamically update based on the master toggle. This structure provides a powerful, flexible narrative, allowing the user to seamlessly shift between the "cash-only" story, the "true total cost" story, and the "internal effort" story, all in one place. -->
+    <!-- Visualization & Content Choices:
+        - Master Toggle: Buttons to switch 'activeView' state (Capital, Total $, Hours). This is the core interaction.
+        - KPI Cards: Dynamic text fields showing high-level totals based on 'activeView'.
+        - Waterfall Charts (Chart.js): Show 'Investment' vs 'ROI' flow. Dynamically updates to show Capital-only or Total Investment. Hidden for 'Hours' view.
+        - Timeline Chart (Chart.js): Shows cumulative cost vs. benefit. Dynamically updates. Hidden for 'Hours' view.
+        - Total Investment Mix (Chart.js Donut): New section showing Capital vs. Resource $ breakdown.
+        - Resource Allocation (Chart.js Donut): New section showing resource hour breakdown by category.
+        - Portfolio Mix (Chart.js Donut): Shows Investment $ and ROI $ by category. Dynamic. Hidden for 'Hours' view.
+        - Project Efficiency (Chart.js Bubble): Maps Cost vs. ROI for key projects. Dynamic. Hidden for 'Hours' view.
+        - Details Tab: Retains granular breakdown, now with dynamic cost data.
+        - Gemini API: "CFO Talking Points" and "Risk Analysis" remain as-is, providing qualitative AI insights.
+        - CONFIRMATION: NO SVG graphics used. NO Mermaid JS used.
+    -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    colors: {
+                        'theme-blue': '#0053a1',
+                        'theme-mint': '#6dd4bc',
+                        'theme-purple': '#663399',
+                        'theme-yellow': '#f1dd39',
+                    }
+                }
+            }
+        }
+    </script>
+</head>
+<body class="bg-gray-50 text-gray-800 font-sans">
+
+    <div class="container mx-auto p-4 md:p-8">
+
+        <header class="mb-6">
+            <h1 class="text-3xl font-bold text-theme-blue">AI Initiatives: Financial & Resource Dashboard</h1>
+            <p class="text-lg text-gray-600">Executive Summary & Financial Breakdown</p>
+        </header>
+
+        <!-- Master View Toggle -->
+        <div class="mb-6 p-4 bg-white rounded-lg shadow-md">
+            <h3 class="text-lg font-semibold mb-3 text-gray-700">Select Dashboard View:</h3>
+            <div class="flex flex-wrap gap-2">
+                <button id="viewToggleCapital" class="view-toggle bg-theme-blue text-white py-2 px-4 rounded-lg shadow font-medium">
+                    Capital Investment (Cash)
+                </button>
+                <button id="viewToggleTotal" class="view-toggle bg-gray-200 text-gray-700 py-2 px-4 rounded-lg font-medium">
+                    Total Investment (All-In $)
+                </button>
+                <button id="viewToggleHours" class="view-toggle bg-gray-200 text-gray-700 py-2 px-4 rounded-lg font-medium">
+                    Resource Effort (Hours)
+                </button>
+            </div>
+        </div>
+
+        <!-- Main KPI Cards -->
+        <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-6">
+            <div class="bg-white p-6 rounded-lg shadow-lg">
+                <h2 class="text-sm font-medium text-gray-500 uppercase" id="kpiTotalInvestmentLabel">Total Investment</h2>
+                <p class="text-3xl font-bold text-theme-purple" id="kpiTotalInvestment">...</p>
+                <p class="text-sm text-gray-500" id="kpiTotalInvestmentSub">Max Capital Spend</p>
+            </div>
+            <div class="bg-white p-6 rounded-lg shadow-lg">
+                <h2 class="text-sm font-medium text-gray-500 uppercase">Expected Annual ROI</h2>
+                <p class="text-3xl font-bold text-theme-mint" id="kpiTotalROI">$15.0M - $26.0M</p>
+                <p class="text-sm text-gray-500">From 4 key initiatives</p>
+            </div>
+            <div class="bg-white p-6 rounded-lg shadow-lg">
+                <h2 class="text-sm font-medium text-gray-500 uppercase">Implementation Timeline</h2>
+                <p class="text-3xl font-bold text-gray-800">5-6 Months</p>
+                <p class="text-sm text-gray-500">For Phase 1 delivery</p>
+            </div>
+            <div class="bg-white p-6 rounded-lg shadow-lg">
+                <h2 class="text-sm font-medium text-gray-500 uppercase">Benefits Realization</h2>
+                <p class="text-3xl font-bold text-gray-800">&lt; 6 Months</p>
+                <p class="text-sm text-gray-500">Payback period</p>
+            </div>
+        </div>
+
+        <!-- Main Tab Navigation -->
+        <div class="mb-6">
+            <div class="border-b border-gray-200">
+                <nav class="-mb-px flex space-x-8" aria-label="Tabs">
+                    <button data-tab="dashboard" class="dashboard-tab whitespace-nowrap py-4 px-1 border-b-2 font-medium text-sm text-theme-blue border-theme-blue">
+                        Financial Dashboard
+                    </button>
+                    <button data-tab="details" class="dashboard-tab whitespace-nowrap py-4 px-1 border-b-2 font-medium text-sm text-gray-500 border-transparent hover:text-gray-700 hover:border-gray-300">
+                        Use Case Details
+                    </button>
+                    <button data-tab="cfo" class="dashboard-tab whitespace-nowrap py-4 px-1 border-b-2 font-medium text-sm text-gray-500 border-transparent hover:text-gray-700 hover:border-gray-300">
+                        ✨ CFO Talking Points
+                    </button>
+                </nav>
+            </div>
+        </div>
+
+        <!-- Tab Content -->
+        <div id="dashboard-content">
+
+            <!-- Dashboard Tab -->
+            <div id="dashboardView" class="tab-content space-y-6">
+
+                <!-- Waterfall Charts -->
+                <div id="waterfallSummary" class="bg-white p-6 rounded-lg shadow-lg">
+                    <h2 class="text-xl font-semibold mb-4 text-theme-blue">Financial Summary: Investment vs. Return</h2>
+                    <div class="border-b border-gray-200 mb-4">
+                        <nav class="-mb-px flex space-x-6" aria-label="Tabs">
+                            <button data-tab="summaryWaterfall" class="waterfall-tab whitespace-nowrap py-3 px-1 border-b-2 font-medium text-sm text-theme-blue border-theme-blue">
+                                Summary Waterfall
+                            </button>
+                            <button data-tab="itemizedWaterfall" class="waterfall-tab whitespace-nowrap py-3 px-1 border-b-2 font-medium text-sm text-gray-500 border-transparent hover:text-gray-700 hover:border-gray-300">
+                                Itemized Waterfall
+                            </button>
+                        </nav>
+                    </div>
+                    <div id="summaryWaterfallView" class="waterfall-tab-content">
+                        <div class="relative w-full h-80">
+                            <canvas id="summaryWaterfallChart"></canvas>
+                        </div>
+                    </div>
+                    <div id="itemizedWaterfallView" class="waterfall-tab-content hidden">
+                        <div class="relative w-full h-96">
+                            <canvas id="itemizedWaterfallChart"></canvas>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- The Breakeven Story (Timeline) -->
+                <div id="timeline" class="bg-white p-6 rounded-lg shadow-lg">
+                    <h2 class="text-xl font-semibold mb-4 text-theme-blue">The Breakeven Story: Cost vs. Benefit Over Time</h2>
+                    <!-- This container now controls the height -->
+                    <div class="relative w-full h-64 md:h-80">
+                        <canvas id="timelineChart"></canvas>
+                    </div>
+                </div>
+                
+                <!-- Total Investment Breakdown -->
+                <div id="resourceInvestment" class="bg-white p-6 rounded-lg shadow-lg">
+                    <h2 class="text-xl font-semibold mb-4 text-theme-blue" id="totalInvestmentTitle">Total Investment Breakdown</h2>
+                    <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                        <div>
+                            <h3 class="text-lg font-semibold text-gray-700 text-center">Investment Mix (by Dollars)</h3>
+                            <div class="relative w-full h-80">
+                                <canvas id="totalInvestmentMixChart"></canvas>
+                            </div>
+                        </div>
+                        <div>
+                            <h3 class="text-lg font-semibold text-gray-700 text-center">Resource Allocation (by Hours)</h3>
+                            <div class="relative w-full h-80">
+                                <canvas id="resourceAllocationChart"></canvas>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                
+                <!-- Resource-Only View (Hidden by default) -->
+                <div id="resourceAllocation" class="hidden bg-white p-6 rounded-lg shadow-lg">
+                    <h2 class="text-xl font-semibold mb-4 text-theme-blue">Resource Allocation (Total Hours)</h2>
+                    <div class="relative w-full h-96">
+                        <canvas id="resourceAllocationChartHours"></canvas>
+                    </div>
+                </div>
+
+                <!-- Portfolio Mix -->
+                <div id="portfolioMix" class="bg-white p-6 rounded-lg shadow-lg">
+                    <h2 class="text-xl font-semibold mb-4 text-theme-blue">Portfolio Mix: Investment vs. Return</h2>
+                    <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                        <div>
+                            <h3 class="text-lg font-semibold text-gray-700 text-center">Investment by Category</h3>
+                            <div class="relative w-full h-80">
+                                <canvas id="investmentCategoryChart"></canvas>
+                            </div>
+                        </div>
+                        <div>
+                            <h3 class="text-lg font-semibold text-gray-700 text-center">ROI by Category</h3>
+                            <div class="relative w-full h-80">
+                                <canvas id="roiCategoryChart"></canvas>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Project Efficiency -->
+                <div id="efficiency" class="bg-white p-6 rounded-lg shadow-lg">
+                    <h2 class="text-xl font-semibold mb-4 text-theme-blue">Project Efficiency Matrix</h2>
+                    <p class="text-sm text-gray-600 mb-4">This chart maps the cost vs. annual return for the 4 direct ROI-generating projects. "AI Foundation" projects are not plotted as their value is enabling these returns.</p>
+                    <div class="relative w-full h-96">
+                        <canvas id="efficiencyChart"></canvas>
+                    </div>
+                </div>
+
+                <!-- Investment & ROI Breakdown (Tabs) -->
+                <div class="bg-white p-6 rounded-lg shadow-lg">
+                    <div class="border-b border-gray-200 mb-4">
+                        <nav class="-mb-px flex space-x-6" aria-label="Tabs">
+                            <button data-tab="investmentView" class="breakdown-tab whitespace-nowrap py-3 px-1 border-b-2 font-medium text-sm text-theme-blue border-theme-blue">
+                                Investment Breakdown
+                            </button>
+                            <button data-tab="roiView" class="breakdown-tab whitespace-nowrap py-3 px-1 border-b-2 font-medium text-sm text-gray-500 border-transparent hover:text-gray-700 hover:border-gray-300">
+                                ROI Breakdown
+                            </button>
+                        </nav>
+                    </div>
+
+                    <div id="investmentView" class="breakdown-tab-content grid grid-cols-1 md:grid-cols-2 gap-6">
+                        <div>
+                            <h3 class="text-lg font-semibold text-gray-700 text-center">Investment by Category</h3>
+                            <div class="relative w-full h-80">
+                                <canvas id="investmentDonutChart"></canvas>
+                            </div>
+                        </div>
+                        <div>
+                            <h3 class="text-lg font-semibold text-gray-700 text-center">Investment by Use Case</h3>
+                            <div class="relative w-full h-80">
+                                <canvas id="investmentBarChart"></canvas>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div id="roiView" class="breakdown-tab-content hidden">
+                        <h3 class="text-lg font-semibold text-gray-700 text-center">Min. Annual ROI by Use Case</h3>
+                        <div class="relative w-full h-96">
+                            <canvas id="roiBarChart"></canvas>
+                        </div>
+                    </div>
+                </div>
+
+            </div>
+
+            <!-- Use Case Details Tab -->
+            <div id="detailsView" class="tab-content hidden space-y-4">
+                <!-- Content will be dynamically generated here -->
+            </div>
+
+            <!-- CFO Talking Points Tab -->
+            <div id="cfoView" class="tab-content hidden">
+                <div class="bg-white p-6 rounded-lg shadow-lg">
+                    <h2 class="text-2xl font-semibold mb-4 text-theme-blue">✨ CFO Talking Points</h2>
+                    <div class="space-y-4 mb-6">
+                        <p class="text-gray-700">Click the button to generate a concise, CFO-ready summary of the key financial arguments for this AI investment plan.</p>
+                        <button id="generateCfoSummary" class="inline-flex items-center px-4 py-2 bg-theme-blue text-white font-semibold rounded-lg shadow hover:bg-blue-700 transition duration-300">
+                            <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 mr-2" viewBox="0 0 20 20" fill="currentColor">
+                                <path fill-rule="evenodd" d="M10 3a1 1 0 00-1 1v5.586L7.707 7.293a1 1 0 00-1.414 1.414l3 3a1 1 0 001.414 0l3-3a1 1 0 00-1.414-1.414L11 9.586V4a1 1 0 00-1-1z" clip-rule="evenodd" />
+                                <path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm0 2a10 10 0 100-20 10 10 0 000 20z" clip-rule="evenodd" />
+                            </svg>
+                            Generate Summary
+                        </button>
+                    </div>
+                    <div id="cfoSummaryOutput" class="p-4 bg-gray-50 rounded-lg border border-gray-200 hidden">
+                        <div id="cfoSummarySpinner" class="flex items-center space-x-2 text-gray-600">
+                            <svg class="animate-spin h-5 w-5 text-theme-blue" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                                <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+                                <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                            </svg>
+                            <span>Generating talking points...</span>
+                        </div>
+                        <div id="cfoSummaryContent" class="text-gray-800"></div>
+                    </div>
+                </div>
+            </div>
+
+        </div> <!-- /end #dashboard-content -->
+    </div> <!-- /end .container -->
+
+    <script>
+        // --- DATA ---
+        // This is the single source of truth, collated from all provided PDFs.
+        const fullData = {
+            projects: [
+                {
+                    name: "AI Governance Council",
+                    category: "AI Foundation",
+                    capitalCostMin: 0,
+                    capitalCostMax: 0,
+                    resourceCost: 644040,
+                    resourceHours: 1636,
+                    ongoingCost: 1196 * 300, // Estimate from summary
+                    description: "Establishes guidelines, reviews projects, and manages AI-related risks.",
+                    timeline: "8 weeks",
+                    roiMin: 0,
+                    roiMax: 0,
+                    metrics: ["Time-to-Resolve on AI Risk", "Tool in Compliance Rate"]
+                },
+                {
+                    name: "AI Literacy & Enablement",
+                    category: "AI Foundation",
+                    capitalCostMin: 14500 + 108000,
+                    capitalCostMax: 14500 + 324000,
+                    resourceCost: 2996100,
+                    resourceHours: 8870,
+                    ongoingCost: 40000 + 324000, // Max ongoing
+                    description: "Trains leadership and all resources on AI fundamentals and tool usage.",
+                    timeline: "6 weeks",
+                    roiMin: 0,
+                    roiMax: 0,
+                    metrics: ["AI Literacy Rate", "Task Automation Adoption", "Talent Retention"]
+                },
+                {
+                    name: "Tech & Data Preparation",
+                    category: "AI Foundation",
+                    capitalCostMin: 100000,
+                    capitalCostMax: 500000,
+                    resourceCost: 492400,
+                    resourceHours: 1360,
+                    ongoingCost: 500000, // Max ongoing
+                    description: "Prepares data and establishes sandbox environments for AI development.",
+                    timeline: "12 weeks",
+                    roiMin: 0,
+                    roiMax: 0,
+                    metrics: ["AI Data Readiness Score", "Time-to-Insight", "Experiment-to-Product Velocity"]
+                },
+                {
+                    name: "AI Development Tools",
+                    category: "AI Foundation",
+                    capitalCostMin: 48000,
+                    capitalCostMax: 48000,
+                    resourceCost: 48000,
+                    resourceHours: 160,
+                    ongoingCost: 48000,
+                    description: "Provides developers with tools to build, test, and deploy AI models.",
+                    timeline: "12 weeks",
+                    roiMin: 0,
+                    roiMax: 0,
+                    metrics: ["Project Velocity", "Time-to-Delivery"]
+                },
+                {
+                    name: "Proposal & SOW Automation",
+                    category: "Quick Win",
+                    capitalCostMin: 1000,
+                    capitalCostMax: 1000,
+                    resourceCost: 233600,
+                    resourceHours: 680,
+                    ongoingCost: 12000,
+                    description: "Uses AI to automate and accelerate the creation of proposals and SOWs.",
+                    timeline: "8 weeks",
+                    roiMin: 3400000,
+                    roiMax: 3400000,
+                    metrics: ["Increase Win Rate", "Higher Deal Value", "70% Proposal Speed"]
+                },
+                {
+                    name: "AI Meeting Assistant",
+                    category: "Quick Win",
+                    capitalCostMin: 72000,
+                    capitalCostMax: 72000,
+                    resourceCost: 48000,
+                    resourceHours: 160,
+                    ongoingCost: 72000,
+                    description: "Provides transcription, summarization, and action item tracking for meetings.",
+                    timeline: "6 weeks",
+                    roiMin: 1170000,
+                    roiMax: 2340000,
+                    metrics: ["Time saved on Meeting Summary", "Increased accountability"]
+                },
+                {
+                    name: "Large Document Interrogation",
+                    category: "Quick Win",
+                    capitalCostMin: 50400,
+                    capitalCostMax: 50400,
+                    resourceCost: 48000, // Estimate from summary: 160hrs * $300
+                    resourceHours: 160,
+                    ongoingCost: 50400,
+                    description: "AI tool to search and synthesize information from large documents.",
+                    timeline: "12 weeks",
+                    roiMin: 520000,
+                    roiMax: 780000,
+                    metrics: ["Time-on-Reviewing-Large-Document", "Time-to-Impact"]
+                },
+                {
+                    name: "Marketing & Sales Enablement",
+                    category: "Strategic Value",
+                    capitalCostMin: 0,
+                    capitalCostMax: 0,
+                    resourceCost: 632000,
+                    resourceHours: 1760,
+                    ongoingCost: 800 * 300, // Estimate from summary
+                    description: "Develops AI-powered GTM strategies and sales collateral.",
+                    timeline: "N/A",
+                    roiMin: 1500000,
+                    roiMax: 2500000,
+                    metrics: ["AI GTM Readiness", "Revenue Generated", "New Logos"]
+                },
+                {
+                    name: "Strategic AI Advisory Services",
+                    category: "Strategic Value",
+                    capitalCostMin: 0,
+                    capitalCostMax: 0,
+                    resourceCost: 84000,
+                    resourceHours: 280,
+                    ongoingCost: 0,
+                    description: "New client-facing service offering for strategic AI advisory.",
+                    timeline: "N/A",
+                    roiMin: 1800000,
+                    roiMax: 1800000,
+                    metrics: ["Number of AI Strategy Engagements", "Revenue Generated"]
+                }
+            ],
+            summary: {
+                totalResourceCost: 5178140, // Sum of all resourceCost
+                totalResourceHours: 14906, // Sum of all resourceHours
+                totalMinCapital: 393900,  // Sum of all capitalCostMin
+                totalMaxCapital: 1010900, // Sum of all capitalCostMax
+                totalOngoingCost: 1246400, // Sum of all ongoingCost
+                totalMinROI: 8390000,     // Sum of ROI-generating projects' min ROI
+                totalMaxROI: 10820000,    // Sum of ROI-generating projects' max ROI
+                // Note: The PDF summary claims $15-26M ROI, but the itemized list only adds up to $8.39M - $10.82M.
+                // The $15.6M from "Dev Tools" and $1.87M from "Data Prep" are listed as "Return" in the PDF,
+                // but are enablers, not direct revenue. Let's use the $15M figure from the PDF summary for high-level charts.
+                summaryMinROI: 15000000,
+                summaryMaxROI: 26000000,
+            }
+        };
+        
+        fullData.summary.totalMinInvestment = fullData.summary.totalMinCapital + fullData.summary.totalResourceCost;
+        fullData.summary.totalMaxInvestment = fullData.summary.totalMaxCapital + fullData.summary.totalResourceCost;
+
+
+        // --- STATE ---
+        const chartInstances = {};
+        let activeView = 'capital'; // 'capital', 'total', 'hours'
+        const themeColors = {
+            blue: '#0053a1',
+            mint: '#6dd4bc',
+            purple: '#663399',
+            yellow: '#f1dd39',
+        };
+
+        // --- CORE LOGIC ---
+
+        document.addEventListener('DOMContentLoaded', () => {
+            setupToggles();
+            setupTabs();
+            updateDashboard();
+        });
+        
+        function setupToggles() {
+            const toggles = [
+                { id: 'viewToggleCapital', view: 'capital' },
+                { id: 'viewToggleTotal', view: 'total' },
+                { id: 'viewToggleHours', view: 'hours' },
+            ];
+            
+            toggles.forEach(toggle => {
+                document.getElementById(toggle.id).addEventListener('click', () => {
+                    activeView = toggle.view;
+                    updateDashboard();
+                });
+            });
+        }
+
+        function setupTabs() {
+            const tabs = document.querySelectorAll('.dashboard-tab');
+            const tabContents = document.querySelectorAll('.tab-content');
+            tabs.forEach(tab => {
+                tab.addEventListener('click', () => {
+                    tabs.forEach(t => {
+                        t.classList.remove('text-theme-blue', 'border-theme-blue');
+                        t.classList.add('text-gray-500', 'border-transparent', 'hover:text-gray-700', 'hover:border-gray-300');
+                    });
+                    tab.classList.add('text-theme-blue', 'border-theme-blue');
+                    tab.classList.remove('text-gray-500', 'border-transparent', 'hover:text-gray-700', 'hover:border-gray-300');
+                    
+                    const tabName = tab.getAttribute('data-tab');
+                    tabContents.forEach(content => {
+                        content.classList.add('hidden');
+                    });
+                    document.getElementById(`${tabName}View`).classList.remove('hidden');
+                });
+            });
+            
+            const waterfallTabs = document.querySelectorAll('.waterfall-tab');
+            const waterfallContents = document.querySelectorAll('.waterfall-tab-content');
+            waterfallTabs.forEach(tab => {
+                tab.addEventListener('click', () => {
+                    waterfallTabs.forEach(t => t.classList.remove('text-theme-blue', 'border-theme-blue'));
+                    tab.classList.add('text-theme-blue', 'border-theme-blue');
+                    const tabName = tab.getAttribute('data-tab');
+                    waterfallContents.forEach(c => c.classList.add('hidden'));
+                    document.getElementById(`${tabName}View`).classList.remove('hidden');
+                });
+            });
+
+            const breakdownTabs = document.querySelectorAll('.breakdown-tab');
+            const breakdownContents = document.querySelectorAll('.breakdown-tab-content');
+            breakdownTabs.forEach(tab => {
+                tab.addEventListener('click', () => {
+                    breakdownTabs.forEach(t => t.classList.remove('text-theme-blue', 'border-theme-blue'));
+                    tab.classList.add('text-theme-blue', 'border-theme-blue');
+                    const tabName = tab.getAttribute('data-tab');
+                    breakdownContents.forEach(c => c.classList.add('hidden'));
+                    document.getElementById(`${tabName}View`).classList.remove('hidden');
+                });
+            });
+        }
+
+        function updateDashboard() {
+            updateToggleStyles();
+            destroyAllCharts();
+            updateVisibility();
+            initAllCharts();
+        }
+
+        function updateToggleStyles() {
+            const toggles = ['viewToggleCapital', 'viewToggleTotal', 'viewToggleHours'];
+            toggles.forEach(id => {
+                const button = document.getElementById(id);
+                button.classList.remove('bg-theme-blue', 'text-white', 'bg-gray-200', 'text-gray-700');
+                if (button.id.toLowerCase().includes(activeView)) {
+                    button.classList.add('bg-theme-blue', 'text-white');
+                } else {
+                    button.classList.add('bg-gray-200', 'text-gray-700');
+                }
+            });
+        }
+
+        function updateVisibility() {
+            const financialCharts = ['waterfallSummary', 'waterfallItemized', 'timeline', 'portfolioMix', 'efficiency'];
+            const hourCharts = ['resourceInvestment', 'resourceAllocation'];
+            const financialBreakdowns = ['roiView'];
+            
+            if (activeView === 'hours') {
+                financialCharts.forEach(id => {
+                    const el = document.getElementById(id);
+                    if (el) el.classList.add('hidden');
+                });
+                hourCharts.forEach(id => {
+                    const el = document.getElementById(id);
+                    if (el) el.classList.remove('hidden');
+                });
+                financialBreakdowns.forEach(id => {
+                    const el = document.getElementById(id);
+                    if (el) el.classList.add('hidden');
+                });
+                // Show investment breakdown, but it will be in hours
+                document.getElementById('investmentView').classList.remove('hidden');
+
+            } else { // 'capital' or 'total'
+                financialCharts.forEach(id => {
+                    const el = document.getElementById(id);
+                    if (el) el.classList.remove('hidden');
+                });
+                hourCharts.forEach(id => {
+                    const el = document.getElementById(id);
+                    if (el) el.classList.add('hidden');
+                });
+                financialBreakdowns.forEach(id => {
+                    const el = document.getElementById(id);
+                    if (el) el.classList.remove('hidden');
+                });
+            }
+
+            // Always show the "Total Investment Breakdown" section, but change its title
+            const totalInvestmentSection = document.getElementById('resourceInvestment');
+            const totalInvestmentTitle = document.getElementById('totalInvestmentTitle');
+            if (activeView === 'hours') {
+                totalInvestmentSection.classList.add('hidden'); // Hide for hours
+            } else {
+                totalInvestmentSection.classList.remove('hidden');
+                totalInvestmentTitle.textContent = activeView === 'capital' ? 'Capital vs. Resource Investment' : 'Total Investment Breakdown';
+            }
+        }
+
+        function destroyAllCharts() {
+            Object.values(chartInstances).forEach(chart => {
+                if (chart) chart.destroy();
+            });
+        }
+
+        function initAllCharts() {
+            const data = getChartData();
+
+            initKpiCards(data);
+            
+            // Financial charts (hide in 'hours' view)
+            if (activeView !== 'hours') {
+                initWaterfallSummaryChart(data);
+                initWaterfallByCaseChart(data);
+                initTimelineChart(data);
+                initPortfolioMixCharts(data);
+                initEfficiencyChart(data);
+                initRoiChart(data);
+            } else {
+                // Call the new function ONLY in hours view
+                initResourceHourChart(data);
+            }
+
+            // Investment charts (always show, but content changes)
+            initInvestmentCharts(data);
+
+            // Details tab
+            populateDetailsTab();
+
+            // AI Features
+            initCfoSummary();
+            initRiskAnalysis();
+        }
+        
+        // --- DATA HELPERS ---
+
+        function getChartData() {
+            const data = fullData.summary;
+            
+            // View 1: Capital Investment
+            const capital = {
+                investment: {
+                    minTotal: data.totalMinCapital,
+                    maxTotal: data.totalMaxCapital,
+                    ongoing: data.totalOngoingCost,
+                    byCategory: {
+                        'AI Foundation': 670500, // Sum of capital costs for foundation
+                        'Quick Win': 123400,
+                        'Strategic Value': 0
+                    },
+                    byProject: fullData.projects.reduce((acc, p) => {
+                        acc[p.name] = p.capitalCostMax;
+                        return acc;
+                    }, {})
+                },
+                roi: {
+                    minTotal: data.summaryMinROI,
+                    maxTotal: data.summaryMaxROI,
+                    byCategory: {
+                        'Quick Win': 5090000, // Sum of min ROI
+                        'Strategic Value': 3300000
+                    },
+                    byProject: fullData.projects.reduce((acc, p) => {
+                        acc[p.name] = p.roiMin;
+                        return acc;
+                    }, {})
+                }
+            };
+
+            // View 2: Total Investment (All-In $)
+            const total = {
+                investment: {
+                    minTotal: data.totalMinInvestment,
+                    maxTotal: data.totalMaxInvestment,
+                    ongoing: data.totalOngoingCost,
+                    byCategory: fullData.projects.reduce((acc, p) => {
+                        const cost = (p.capitalCostMax + p.resourceCost);
+                        if (!acc[p.category]) acc[p.category] = 0;
+                        acc[p.category] += cost;
+                        return acc;
+                    }, {}),
+                    byProject: fullData.projects.reduce((acc, p) => {
+                        acc[p.name] = p.capitalCostMax + p.resourceCost;
+                        return acc;
+                    }, {})
+                },
+                roi: capital.roi // ROI doesn't change
+            };
+
+            // View 3: Resource Effort (Hours)
+            const hours = {
+                investment: {
+                    minTotal: data.totalResourceHours,
+                    maxTotal: data.totalResourceHours,
+                    ongoing: 0, // N/A
+                    byCategory: fullData.projects.reduce((acc, p) => {
+                        if (!acc[p.category]) acc[p.category] = 0;
+                        acc[p.category] += p.resourceHours;
+                        return acc;
+                    }, {}),
+                    byProject: fullData.projects.reduce((acc, p) => {
+                        acc[p.name] = p.resourceHours;
+                        return acc;
+                    }, {})
+                },
+                roi: { minTotal: 0, maxTotal: 0, byCategory: {}, byProject: {} } // N/A
+            };
+
+            if (activeView === 'capital') return capital;
+            if (activeView === 'total') return total;
+            return hours; // activeView === 'hours'
+        }
+
+        function getProjectChartData(project) {
+            if (activeView === 'capital') {
+                return {
+                    investment: project.capitalCostMax,
+                    roi: project.roiMin
+                };
+            }
+            if (activeView === 'total') {
+                return {
+                    investment: project.capitalCostMax + project.resourceCost,
+                    roi: project.roiMin
+                };
+            }
+            // activeView === 'hours'
+            return {
+                investment: project.resourceHours,
+                roi: 0 // ROI is not measured in hours
+            };
+        }
+
+        // --- CHART INIT FUNCTIONS ---
+
+        function initKpiCards(data) {
+            const { investment, roi } = data;
+            const kpiInvestment = document.getElementById('kpiTotalInvestment');
+            const kpiInvestmentLabel = document.getElementById('kpiTotalInvestmentLabel');
+            const kpiInvestmentSub = document.getElementById('kpiTotalInvestmentSub');
+            const kpiRoi = document.getElementById('kpiTotalROI');
+
+            const format = (val) => activeView === 'hours' ? 
+                `${val.toLocaleString()} hrs` : 
+                `$${(val / 1000000).toFixed(2)}M`;
+
+            kpiInvestment.textContent = format(investment.maxTotal);
+            
+            if (activeView === 'capital') {
+                kpiInvestmentLabel.textContent = 'Total Capital Investment';
+                kpiInvestmentSub.textContent = 'Max Capital Spend';
+                kpiRoi.textContent = `$${(roi.minTotal / 1000000).toFixed(1)}M - $${(roi.maxTotal / 1000000).toFixed(1)}M`;
+                kpiRoi.parentElement.classList.remove('hidden');
+            } else if (activeView === 'total') {
+                kpiInvestmentLabel.textContent = 'Total All-In Investment';
+                kpiInvestmentSub.textContent = `(${(fullData.summary.totalMaxCapital / 1000000).toFixed(2)}M Capital + ${(fullData.summary.totalResourceCost / 1000000).toFixed(2)}M Resources)`;
+                kpiRoi.textContent = `$${(roi.minTotal / 1000000).toFixed(1)}M - $${(roi.maxTotal / 1000000).toFixed(1)}M`;
+                kpiRoi.parentElement.classList.remove('hidden');
+            } else { // hours
+                kpiInvestmentLabel.textContent = 'Total Resource Effort';
+                kpiInvestmentSub.textContent = 'Initial Build Hours';
+                kpiRoi.parentElement.classList.add('hidden');
+            }
+        }
+        
+        function initWaterfallSummaryChart(data) {
+            const { investment, roi } = data;
+            const investmentVal = investment.maxTotal;
+            const roiVal = roi.minTotal;
+            const net = roiVal - investmentVal;
+
+            const ctx = document.getElementById('summaryWaterfallChart').getContext('2d');
+            chartInstances.summaryWaterfall = new Chart(ctx, {
+                type: 'bar',
+                data: {
+                    labels: ['Max Investment', 'Min Annual ROI', 'Net Position'],
+                    datasets: [{
+                        label: 'Financial Flow',
+                        data: [
+                            [0, investmentVal],
+                            [investmentVal, roiVal],
+                            [0, net]
+                        ],
+                        backgroundColor: [
+                            themeColors.purple,
+                            themeColors.mint,
+                            themeColors.yellow
+                        ],
+                        borderColor: [
+                            themeColors.purple,
+                            themeColors.mint,
+                            themeColors.yellow
+                        ],
+                        borderWidth: 1
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: {
+                        legend: { display: false },
+                        tooltip: {
+                            callbacks: {
+                                label: function(context) {
+                                    const val = context.raw[1] - context.raw[0];
+                                    return `${context.label}: $${(val / 1000000).toFixed(2)}M`;
+                                }
+                            }
+                        }
+                    },
+                    scales: {
+                        y: {
+                            ticks: {
+                                callback: (val) => `$${val / 1000000}M`
+                            },
+                            title: {
+                                display: true,
+                                text: 'Amount (in Millions)'
+                            }
+                        }
+                    }
+                }
+            });
+        }
+
+        function initWaterfallByCaseChart(data) {
+            const { investment, roi } = data;
+            
+            const labels = [
+                'AI Foundation', 'Quick Wins', 'Strategic Value', 'Total Investment',
+                'Proposal ROI', 'Meeting ROI', 'Doc ROI', 'Mktg ROI', 'Advisory ROI',
+                'Total Min. ROI', 'Itemized Net Position'
+            ];
+            
+            const foundation = investment.byCategory['AI Foundation'];
+            const quickWin = investment.byCategory['Quick Win'];
+            const strategic = investment.byCategory['Strategic Value'];
+            const totalInvestment = foundation + quickWin + strategic;
+
+            const pRoi = roi.byProject['Proposal & SOW Automation'];
+            const mRoi = roi.byProject['AI Meeting Assistant'];
+            const dRoi = roi.byProject['Large Document Interrogation'];
+            const sRoi = roi.byProject['Marketing & Sales Enablement'];
+            const aRoi = roi.byProject['Strategic AI Advisory Services'];
+            const totalRoi = pRoi + mRoi + dRoi + sRoi + aRoi;
+            const net = totalRoi - totalInvestment;
+
+            const dataPoints = [
+                [0, foundation], [foundation, foundation + quickWin], [foundation + quickWin, totalInvestment], [0, totalInvestment],
+                [totalInvestment, totalInvestment + pRoi],
+                [totalInvestment + pRoi, totalInvestment + pRoi + mRoi],
+                [totalInvestment + pRoi + mRoi, totalInvestment + pRoi + mRoi + dRoi],
+                [totalInvestment + pRoi + mRoi + dRoi, totalInvestment + pRoi + mRoi + dRoi + sRoi],
+                [totalInvestment + pRoi + mRoi + dRoi + sRoi, totalInvestment + totalRoi],
+                [0, totalRoi],
+                [0, net]
+            ];
+            
+            const ctx = document.getElementById('itemizedWaterfallChart').getContext('2d');
+            chartInstances.itemizedWaterfall = new Chart(ctx, {
+                type: 'bar',
+                data: {
+                    labels: labels,
+                    datasets: [{
+                        label: 'Financial Flow',
+                        data: dataPoints,
+                        backgroundColor: [
+                            themeColors.purple, themeColors.purple, themeColors.purple, themeColors.purple,
+                            themeColors.mint, themeColors.mint, themeColors.mint, themeColors.mint, themeColors.mint,
+                            themeColors.mint, themeColors.yellow
+                        ],
+                        borderColor: 'white',
+                        borderWidth: 1
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: {
+                        legend: { display: false }
+                    },
+                    scales: {
+                        y: {
+                            ticks: { callback: (val) => `$${val / 1000000}M` },
+                            title: { display: true, text: 'Amount (in Millions)' }
+                        }
+                    }
+                }
+            });
+        }
+
+        function generateTimelineData(investment, ongoing, roi, months = 24) {
+            let cumulativeCost = 0;
+            let cumulativeRoi = 0;
+            const costData = [];
+            const roiData = [];
+            const labels = [];
+            const implementationPeriod = 6;
+            const benefitsStartMonth = 6;
+            const monthlyInvestment = investment / implementationPeriod;
+            const monthlyOngoing = ongoing / 12;
+            const monthlyRoi = roi / 12;
+
+            for (let i = 0; i <= months; i++) {
+                labels.push(`Month ${i}`);
+                if (i <= implementationPeriod) {
+                    cumulativeCost += monthlyInvestment;
+                }
+                if (i > implementationPeriod) {
+                    cumulativeCost += monthlyOngoing;
+                }
+                if (i >= benefitsStartMonth) {
+                    cumulativeRoi += monthlyRoi;
+                }
+                costData.push(cumulativeCost);
+                roiData.push(cumulativeRoi);
+            }
+            return { labels, costData, roiData };
+        }
+
+        function initTimelineChart(data) {
+            const { investment, roi } = data;
+            const timelineData = generateTimelineData(investment.maxTotal, investment.ongoing, roi.minTotal);
+            
+            const ctx = document.getElementById('timelineChart').getContext('2d');
+            chartInstances.timeline = new Chart(ctx, {
+                type: 'line',
+                data: {
+                    labels: timelineData.labels,
+                    datasets: [
+                        {
+                            label: 'Cumulative Investment',
+                            data: timelineData.costData,
+                            borderColor: themeColors.purple,
+                            backgroundColor: `${themeColors.purple}33`,
+                            fill: true,
+                            tension: 0.1
+                        },
+                        {
+                            label: 'Cumulative ROI',
+                            data: timelineData.roiData,
+                            borderColor: themeColors.mint,
+                            backgroundColor: `${themeColors.mint}33`,
+                            fill: true,
+                            tension: 0.1
+                        }
+                    ]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: {
+                        title: { display: true, text: 'Cumulative Investment vs. ROI (Payback Period)' },
+                        tooltip: { mode: 'index', intersect: false }
+                    },
+                    scales: {
+                        y: {
+                            ticks: { callback: (val) => `$${(val / 1000000).toFixed(1)}M` },
+                            title: { display: true, text: 'Amount (in Millions)' }
+                        },
+                        x: {
+                            title: { display: true, text: 'Months' }
+                        }
+                    }
+                }
+            });
+        }
+
+        function initPortfolioMixCharts() {
+            // This section is a bit different, it doesn't use the toggle
+            // It *always* shows the breakdown of the "Total" (All-in) cost
+            
+            // Chart 1: Capital vs. Resource $
+            const mixData = {
+                labels: ['Capital Investment', 'Resource Cost'],
+                datasets: [{
+                    data: [fullData.summary.totalMaxCapital, fullData.summary.totalResourceCost],
+                    backgroundColor: [themeColors.blue, themeColors.purple],
+                }]
+            };
+            const ctxMix = document.getElementById('totalInvestmentMixChart').getContext('2d');
+            chartInstances.totalInvestmentMix = new Chart(ctxMix, {
+                type: 'doughnut',
+                data: mixData,
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: {
+                        legend: { position: 'bottom' },
+                        tooltip: { callbacks: { label: (c) => `${c.label}: $${c.raw.toLocaleString()}` } }
+                    }
+                }
+            });
+
+            // Chart 2: Resource Hours by Category
+            const hoursByCategory = getChartData('hours').investment.byCategory;
+            const allocationData = {
+                labels: Object.keys(hoursByCategory),
+                datasets: [{
+                    data: Object.values(hoursByCategory),
+                    backgroundColor: [themeColors.blue, themeColors.mint, themeColors.purple],
+                }]
+            };
+            const ctxAlloc = document.getElementById('resourceAllocationChart').getContext('2d');
+            chartInstances.resourceAllocation = new Chart(ctxAlloc, {
+                type: 'doughnut',
+                data: allocationData,
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: {
+                        legend: { position: 'bottom' },
+                        tooltip: { callbacks: { label: (c) => `${c.label}: ${c.raw.toLocaleString()} hrs` } }
+                    }
+                }
+            });
+
+            // These are the *other* portfolio mix charts
+            const { investment, roi } = getChartData();
+            
+            const investCatData = {
+                labels: Object.keys(investment.byCategory),
+                datasets: [{
+                    data: Object.values(investment.byCategory),
+                    backgroundColor: [themeColors.blue, themeColors.mint, themeColors.purple],
+                }]
+            };
+            const ctxInvest = document.getElementById('investmentCategoryChart').getContext('2d');
+            chartInstances.investmentCategory = new Chart(ctxInvest, {
+                type: 'doughnut',
+                data: investCatData,
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: {
+                        legend: { position: 'bottom' },
+                        tooltip: { callbacks: { label: (c) => `${c.label}: ${activeView === 'hours' ? c.raw.toLocaleString() + ' hrs' : '$' + c.raw.toLocaleString()}` } }
+                    }
+                }
+            });
+
+            const roiCatData = {
+                labels: Object.keys(roi.byCategory),
+                datasets: [{
+                    data: Object.values(roi.byCategory),
+                    backgroundColor: [themeColors.mint, themeColors.purple],
+                }]
+            };
+            const ctxRoi = document.getElementById('roiCategoryChart').getContext('2d');
+            chartInstances.roiCategory = new Chart(ctxRoi, {
+                type: 'doughnut',
+                data: roiCatData,
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: {
+                        legend: { position: 'bottom' },
+                        tooltip: { callbacks: { label: (c) => `${c.label}: $${c.raw.toLocaleString()}` } }
+                    }
+                }
+            });
+        }
+        
+        // THIS IS THE NEW FUNCTION
+        function initResourceHourChart(data) {
+            const { investment } = data;
+            const labels = Object.keys(investment.byCategory);
+            const values = Object.values(investment.byCategory);
+
+            const donutData = {
+                labels: labels,
+                datasets: [{
+                    data: values,
+                    backgroundColor: [themeColors.blue, themeColors.mint, themeColors.purple],
+                }]
+            };
+            const ctxDonut = document.getElementById('resourceAllocationChartHours').getContext('2d');
+            chartInstances.resourceAllocationHours = new Chart(ctxDonut, {
+                type: 'doughnut',
+                data: donutData,
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: {
+                        legend: { position: 'bottom' },
+                        tooltip: { callbacks: { label: (c) => `${c.label}: ${c.raw.toLocaleString()} hrs` } }
+                    }
+                }
+            });
+        }
+
+        function initEfficiencyChart() {
+            // THIS IS THE FIX: Added a guard for 'hours' view
+            if (activeView === 'hours') {
+                if (chartInstances.efficiency) chartInstances.efficiency.destroy();
+                return; // Don't draw this chart in hours view
+            }
+            
+            const data = {
+                datasets: fullData.projects
+                    .filter(p => p.category === 'Quick Win' || p.category === 'Strategic Value')
+                    .map((p, i) => {
+                        // THIS IS THE FIX: Added the missing function call
+                        const { investment, roi } = getProjectChartData(p);
+                        return {
+                            label: p.name,
+                            data: [{ x: investment, y: roi, r: 15 }],
+                            backgroundColor: [themeColors.blue, themeColors.mint, themeColors.purple, themeColors.yellow][i % 4]
+                        };
+                    })
+            };
+
+            const ctx = document.getElementById('efficiencyChart').getContext('2d');
+            chartInstances.efficiency = new Chart(ctx, {
+                type: 'bubble',
+                data: data,
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: {
+                        legend: { position: 'bottom' },
+                        tooltip: {
+                            callbacks: {
+                                label: function(c) {
+                                    return `${c.dataset.label}: ($${c.raw.x.toLocaleString()} Cost, $${c.raw.y.toLocaleString()} ROI)`;
+                                }
+                            }
+                        }
+                    },
+                    scales: {
+                        x: {
+                            title: { display: true, text: 'Investment' },
+                            ticks: { callback: (val) => `$${val / 1000}k` }
+                        },
+                        y: {
+                            title: { display: true, text: 'Annual ROI' },
+                            ticks: { callback: (val) => `$${val / 1000000}M` }
+                        }
+                    }
+                }
+            });
+        }
+
+        function initInvestmentCharts(data) {
+            const { investment } = data;
+            const labels = Object.keys(investment.byCategory);
+            const values = Object.values(investment.byCategory);
+            
+            const format = (val) => activeView === 'hours' ? `${val.toLocaleString()} hrs` : `$${val.toLocaleString()}`;
+
+            const donutData = {
+                labels: labels,
+                datasets: [{
+                    data: values,
+                    backgroundColor: [themeColors.blue, themeColors.mint, themeColors.purple],
+                }]
+            };
+            const ctxDonut = document.getElementById('investmentDonutChart').getContext('2d');
+            chartInstances.investmentDonut = new Chart(ctxDonut, {
+                type: 'doughnut',
+                data: donutData,
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: {
+                        legend: { position: 'bottom' },
+                        tooltip: { callbacks: { label: (c) => `${c.label}: ${format(c.raw)}` } }
+                    }
+                }
+            });
+
+            const barData = {
+                labels: Object.keys(investment.byProject),
+                datasets: [{
+                    label: activeView === 'hours' ? 'Resource Hours' : 'Investment',
+                    data: Object.values(investment.byProject),
+                    backgroundColor: [
+                        themeColors.blue, themeColors.blue, themeColors.blue, themeColors.blue,
+                        themeColors.mint, themeColors.mint, themeColors.mint,
+                        themeColors.purple, themeColors.purple
+                    ],
+                }]
+            };
+            const ctxBar = document.getElementById('investmentBarChart').getContext('2d');
+            chartInstances.investmentBar = new Chart(ctxBar, {
+                type: 'bar',
+                data: barData,
+                options: {
+                    indexAxis: 'y',
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: {
+                        legend: { display: false }
+                    },
+                    scales: {
+                        x: {
+                            ticks: { callback: (val) => activeView === 'hours' ? `${val} hrs` : `$${val / 1000}k` }
+                        }
+                    }
+                }
+            });
+        }
+
+        function initRoiChart(data) {
+            const { roi } = data;
+            const roiProjects = fullData.projects.filter(p => p.roiMin > 0);
+            
+            const barData = {
+                labels: roiProjects.map(p => p.name),
+                datasets: [{
+                    label: 'Min. Annual ROI',
+                    data: roiProjects.map(p => p.roiMin),
+                    backgroundColor: [themeColors.blue, themeColors.mint, themeColors.purple, themeColors.yellow, themeColors.blue],
+                }]
+            };
+            const ctxBar = document.getElementById('roiBarChart').getContext('2d');
+            chartInstances.roiBar = new Chart(ctxBar, {
+                type: 'bar',
+                data: barData,
+                options: {
+                    indexAxis: 'y',
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: {
+                        legend: { display: false }
+                    },
+                    scales: {
+                        x: {
+                            ticks: { callback: (val) => `$${val / 1000000}M` }
+                        }
+                    }
+                }
+            });
+        }
+        
+        function populateDetailsTab() {
+            const container = document.getElementById('detailsView');
+            container.innerHTML = ''; // Clear old content
+            const { investment } = getChartData(); // Get current view data
+            const format = (val) => activeView === 'hours' ? `${val.toLocaleString()} hrs` : `$${val.toLocaleString()}`;
+
+            fullData.projects.forEach(project => {
+                const investmentValue = investment.byProject[project.name];
+                
+                const card = `
+                    <div class="bg-white p-6 rounded-lg shadow-lg">
+                        <div class="flex flex-col md:flex-row justify-between md:items-center mb-2">
+                            <h3 class="text-xl font-bold text-theme-blue">${project.name}</h3>
+                            <span class="text-sm font-medium ${project.category === 'AI Foundation' ? 'bg-blue-100 text-blue-800' : project.category === 'Quick Win' ? 'bg-green-100 text-green-800' : 'bg-purple-100 text-purple-800'} py-1 px-3 rounded-full mt-2 md:mt-0">
+                                ${project.category}
+                            </span>
+                        </div>
+                        <p class="text-gray-600 mb-4">${project.description}</p>
+                        
+                        <div class="grid grid-cols-2 md:grid-cols-4 gap-4 mb-4 text-center">
+                            <div>
+                                <div class="text-sm font-medium text-gray-500 uppercase">${activeView === 'hours' ? 'Resource Effort' : 'Investment'}</div>
+                                <div class="text-lg font-bold text-gray-900">${format(investmentValue)}</div>
+                            </div>
+                            <div>
+                                <div class="text-sm font-medium text-gray-500 uppercase">Timeline</div>
+                                <div class="text-lg font-bold text-gray-900">${project.timeline}</div>
+                            </div>
+                            <div>
+                                <div class="text-sm font-medium text-gray-500 uppercase">Min. Annual ROI</div>
+                                <div class="text-lg font-bold ${project.roiMin > 0 ? 'text-theme-mint' : 'text-gray-500'}">
+                                    ${project.roiMin > 0 ? `$${(project.roiMin / 1000000).toFixed(2)}M` : 'N/A'}
+                                </div>
+                            </div>
+                            <div>
+                                <div class="text-sm font-medium text-gray-500 uppercase">Metrics</div>
+                                <div class="text-sm text-gray-700">${project.metrics.join(', ')}</div>
+                            </div>
+                        </div>
+
+                        <div class="mt-4" data-risk-container>
+                            <button class="generate-risk text-sm font-medium text-theme-blue hover:text-blue-700" data-project="${project.name}" data-desc="${project.description}">
+                                ✨ Analyze Risks
+                            </button>
+                            <div class="risk-output p-3 bg-gray-50 rounded border border-gray-200 mt-2 hidden"></div>
+                        </div>
+                    </div>
+                `;
+                container.innerHTML += card;
+            });
+        }
+
+        // --- AI FEATURES ---
+
+        const API_URL = 'https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash-preview-09-2025:generateContent?key=';
+        const API_KEY = ""; // Will be provided by the environment
+
+        async function callGeminiAPI(prompt, systemInstruction = "") {
+            const payload = {
+                contents: [{ parts: [{ text: prompt }] }],
+                tools: [{ "google_search": {} }],
+            };
+            if (systemInstruction) {
+                payload.systemInstruction = { parts: [{ text: systemInstruction }] };
+            }
+
+            try {
+                const response = await fetch(`${API_URL}${API_KEY}`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(payload)
+                });
+                if (!response.ok) {
+                    throw new Error(`API Error: ${response.status} ${response.statusText}`);
+                }
+                const result = await response.json();
+                const candidate = result.candidates?.[0];
+                if (candidate && candidate.content?.parts?.[0]?.text) {
+                    return candidate.content.parts[0].text;
+                } else {
+                    return "No content generated or response format is unexpected.";
+                }
+            } catch (error) {
+                console.error("Error calling Gemini API:", error);
+                return `An error occurred: ${error.message}. Please check the console.`;
+            }
+        }
+
+        function initCfoSummary() {
+            const button = document.getElementById('generateCfoSummary');
+            const output = document.getElementById('cfoSummaryOutput');
+            const spinner = document.getElementById('cfoSummarySpinner');
+            const content = document.getElementById('cfoSummaryContent');
+
+            button.addEventListener('click', async () => {
+                output.classList.remove('hidden');
+                spinner.classList.remove('hidden');
+                content.innerHTML = '';
+                
+                const dataSummary = JSON.stringify(fullData.summary);
+                const prompt = `
+                    Based on this financial summary data: ${dataSummary}, 
+                    generate a concise, persuasive summary for a CFO. Focus on the 'Total All-In Investment' (totalMaxInvestment) vs. the 'Summary ROI' (summaryMinROI). 
+                    Emphasize the payback period (<6 Months) and the strategic nature of the investment.
+                    Format as a few key bullet points.
+                `;
+                const systemPrompt = "You are a financial analyst. Your task is to provide a summary for a CFO, focusing on investment vs. return. Be professional, concise, and data-driven.";
+
+                const result = await callGeminiAPI(prompt, systemPrompt);
+                spinner.classList.add('hidden');
+                content.innerHTML = result.replace(/\n/g, '<br>'); // Simple formatting
+            });
+        }
+        
+        function initRiskAnalysis() {
+            document.getElementById('detailsView').addEventListener('click', async (e) => {
+                if (e.target.classList.contains('generate-risk')) {
+                    const button = e.target;
+                    
+                    // Robust selection of the output div
+                    const container = button.closest('[data-risk-container]');
+                    if (!container) return;
+                    const output = container.querySelector('.risk-output');
+                    if (!output) {
+                        console.error("Could not find risk output div");
+                        return;
+                    }
+
+                    const projectName = button.getAttribute('data-project');
+                    const projectDesc = button.getAttribute('data-desc');
+
+                    output.classList.remove('hidden');
+                    output.innerHTML = `<div class="flex items-center space-x-2 text-gray-600">
+                        <svg class="animate-spin h-4 w-4 text-theme-blue" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                            <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+                            <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                        </svg>
+                        <span>Analyzing risks for ${projectName}...</span>
+                    </div>`;
+
+                    const prompt = `Analyze the potential financial and operational risks for an AI project named "${projectName}" with the description: "${projectDesc}". Provide 2-3 key risks and potential mitigation strategies. Format as bullet points.`;
+                    const systemPrompt = "You are a risk management expert specializing in AI and IT projects.";
+                    
+                    const result = await callGeminiAPI(prompt, systemPrompt);
+                    output.innerHTML = result.replace(/\n/g, '<br>');
+                }
+            });
+        }
+
+    </script>
+
+</body>
+</html>
