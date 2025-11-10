@@ -403,7 +403,6 @@
                 }
             ],
             summary: {
-                // THIS IS THE FIX: Corrected totalResourceCost from 5178140 to 5226140
                 totalResourceCost: 5226140, // Sum of all 9 project resourceCosts
                 totalResourceHours: 14906, // Sum of all resourceHours
                 totalMinCapital: 393900,  // Sum of all capitalCostMin
@@ -423,7 +422,7 @@
         // --- STATE ---
         const chartInstances = {};
         let activeView = 'capital'; // 'capital', 'total', 'hours'
-        let activeBreakdownTab = 'investmentView'; // THIS IS THE FIX: Track the active tab
+        let activeBreakdownTab = 'investmentView'; 
         const themeColors = {
             blue: '#0053a1',
             mint: '#6dd4bc',
@@ -497,7 +496,7 @@
             breakdownTabs.forEach(tab => {
                 tab.addEventListener('click', () => {
                     const tabName = tab.getAttribute('data-tab');
-                    activeBreakdownTab = tabName; // THIS IS THE FIX: Store the active tab
+                    activeBreakdownTab = tabName; 
 
                     breakdownTabs.forEach(t => {
                         t.classList.remove('text-theme-blue', 'border-theme-blue');
@@ -508,7 +507,6 @@
 
                     breakdownContents.forEach(c => c.classList.add('hidden'));
                     
-                    // THIS IS THE FIX: No more extra "View"
                     const contentEl = document.getElementById(tabName);
                     if (contentEl) {
                         contentEl.classList.remove('hidden');
@@ -538,7 +536,8 @@
         }
 
         function updateVisibility() {
-            const financialCharts = ['waterfallSummary', 'itemizedWaterfallView', 'timeline', 'portfolioMix', 'efficiency'];
+            // THIS IS THE FIX: Removed 'itemizedWaterfallView' from this array
+            const financialCharts = ['waterfallSummary', 'timeline', 'portfolioMix', 'efficiency'];
             const hourCharts = ['resourceInvestment', 'resourceAllocation'];
             
             const roiTabButton = document.querySelector('[data-tab="roiView"]');
@@ -580,9 +579,9 @@
                     if (el) el.classList.add('hidden');
                 });
                 
-                // THIS IS THE FIX: Restore the previously selected tab
                 if (roiTabButton) roiTabButton.classList.remove('hidden');
                 
+                // Restore the previously selected tab
                 if (activeBreakdownTab === 'roiView') {
                     if (roiTabButton) {
                         roiTabButton.classList.add('text-theme-blue', 'border-theme-blue');
@@ -771,7 +770,6 @@
                 kpiRoi.parentElement.classList.remove('hidden');
             } else if (activeView === 'total') {
                 kpiInvestmentLabel.textContent = 'Total All-In Investment';
-                // THIS IS THE FIX: Using the corrected summary number
                 kpiInvestmentSub.textContent = `(${(fullData.summary.totalMaxCapital / 1000000).toFixed(2)}M Capital + ${(fullData.summary.totalResourceCost / 1000000).toFixed(2)}M Resources)`;
                 kpiRoi.textContent = `$${(roi.minTotal / 1000000).toFixed(1)}M - $${(roi.maxTotal / 1000000).toFixed(1)}M`;
                 kpiRoi.parentElement.classList.remove('hidden');
@@ -993,7 +991,6 @@
             const mixData = {
                 labels: ['Capital Investment', 'Resource Cost'],
                 datasets: [{
-                    // THIS IS THE FIX: Using the corrected summary number
                     data: [fullData.summary.totalMaxCapital, fullData.summary.totalResourceCost],
                     backgroundColor: [themeColors.blue, themeColors.purple],
                 }]
