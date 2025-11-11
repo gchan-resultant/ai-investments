@@ -5,17 +5,18 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>AI Initiative Financial Dashboard</title>
     <!-- Chosen Palette: Custom Theme (Blue, Mint, Purple, Yellow) -->
-    <!-- Application Structure Plan: A single-page dashboard with a master 3-way toggle (Capital, Total $, Hours) at the top. This toggle controls the entire dashboard's context. Below, a tabbed interface ("Dashboard", "Use Case Details") allows users to drill down. The "Dashboard" tab contains all the key financial visualizations (Waterfall, Timeline, Portfolio Mix, Efficiency) which dynamically update based on the master toggle. This structure provides a powerful, flexible narrative. -->
+    <!-- Application Structure Plan: A single-page dashboard with a master 3-way toggle (Capital, Total $, Hours) at the top. This toggle controls the entire dashboard's context. A new "Monthly Budget" tab has been added to provide a detailed, interactive cash flow forecast for the CFO. The other tabs ("Dashboard", "Use Case Details") remain. This structure now answers "What is the total picture?" (Dashboard) and "What is the *cash* I need *when*?" (Monthly Budget). -->
     <!-- Visualization & Content Choices:
         - Master Toggle: Buttons to switch 'activeView' state (Capital, Total $, Hours). This is the core interaction.
         - KPI Cards: Dynamic text fields showing high-level totals based on 'activeView'.
-        - Waterfall Charts (Chart.js): Show 'Investment' vs 'ROI' flow. Dynamically updates to show Capital-only or Total Investment. Hidden for 'Hours' view.
-        - Timeline Chart (Chart.js): Shows cumulative cost vs. benefit. Dynamically updates. Hidden for 'Hours' view.
-        - Total Investment Mix (Chart.js Donut): New section showing Capital vs. Resource $ breakdown.
-        - Resource Allocation (Chart.js Donut): New section showing resource hour breakdown by category.
-        - Portfolio Mix (Chart.js Donut): Shows Investment $ and ROI $ by category. Dynamic. Hidden for 'Hours' view.
-        - Project Efficiency (Chart.js Bubble): Maps Cost vs. ROI for key projects. Dynamic. Hidden for 'Hours' view.
-        - Details Tab: Retains granular breakdown of projects.
+        - Waterfall Charts (Chart.js): Show 'Investment' vs 'ROI' flow. Dynamically updates.
+        - Timeline Chart (Chart.js): Shows cumulative cost vs. benefit. Dynamically updates.
+        - New "Monthly Budget" Tab:
+            - KPI Cards: "2025 Budget Need" and "2026 Budget Need".
+            - Checkboxes: To toggle "Optional" projects on/off, which updates the KPIs.
+            - HTML Table: A detailed 14-month cash flow forecast (capital only) based on Gantt chart timelines and specific sandbox scaling rules.
+            - Added "2025 Total" and "2026 Total" subtotal columns to the budget table.
+            - Added tooltips (via `title` attribute) to each cell in the budget table to show the calculation.
         - CONFIRMATION: NO SVG graphics used. NO Mermaid JS used.
     -->
     <script src="https://cdn.tailwindcss.com"></script>
@@ -45,7 +46,7 @@
         </header>
 
         <!-- Master View Toggle -->
-        <div class="mb-6 p-4 bg-white rounded-lg shadow-md">
+        <div id="master-toggle-container" class="mb-6 p-4 bg-white rounded-lg shadow-md">
             <h3 class="text-lg font-semibold mb-3 text-gray-700">Select Dashboard View:</h3>
             <div class="flex flex-wrap gap-2">
                 <button id="viewToggleCapital" class="view-toggle bg-theme-blue text-white py-2 px-4 rounded-lg shadow font-medium">
@@ -60,8 +61,8 @@
             </div>
         </div>
 
-        <!-- Main KPI Cards -->
-        <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-6">
+        <!-- Main KPI Cards (Contextual) -->
+        <div id="kpi-cards" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-6">
             <div class="bg-white p-6 rounded-lg shadow-lg">
                 <h2 class="text-sm font-medium text-gray-500 uppercase" id="kpiTotalInvestmentLabel">Total Investment</h2>
                 <p class="text-3xl font-bold text-theme-purple" id="kpiTotalInvestment">...</p>
@@ -91,10 +92,12 @@
                     <button data-tab="dashboard" class="dashboard-tab whitespace-nowrap py-4 px-1 border-b-2 font-medium text-sm text-theme-blue border-theme-blue">
                         Financial Dashboard
                     </button>
+                    <button data-tab="budget" class="dashboard-tab whitespace-nowrap py-4 px-1 border-b-2 font-medium text-sm text-gray-500 border-transparent hover:text-gray-700 hover:border-gray-300">
+                        Monthly Budget
+                    </button>
                     <button data-tab="details" class="dashboard-tab whitespace-nowrap py-4 px-1 border-b-2 font-medium text-sm text-gray-500 border-transparent hover:text-gray-700 hover:border-gray-300">
                         Use Case Details
                     </button>
-                    <!-- CFO Tab Removed -->
                 </nav>
             </div>
         </div>
@@ -133,7 +136,6 @@
                 <!-- The Breakeven Story (Timeline) -->
                 <div id="timeline" class="bg-white p-6 rounded-lg shadow-lg">
                     <h2 class="text-xl font-semibold mb-4 text-theme-blue">The Breakeven Story: Cost vs. Benefit Over Time</h2>
-                    <!-- This container now controls the height -->
                     <div class="relative w-full h-64 md:h-80">
                         <canvas id="timelineChart"></canvas>
                     </div>
@@ -232,13 +234,115 @@
 
             </div>
 
+            <!-- New Monthly Budget Tab -->
+            <div id="budgetView" class="tab-content hidden space-y-6">
+                <div class="bg-white p-6 rounded-lg shadow-lg">
+                    <h2 class="text-2xl font-semibold mb-4 text-theme-blue">Monthly Capital Budget Forecast</h2>
+                    <p class="text-gray-600 mb-6">This forecast models the monthly *capital (cash)* needed based on the Gantt chart timeline and CFO priorities. Uncheck "Optional" projects to see the immediate budget impact.</p>
+                
+                    <!-- Budget KPI Cards -->
+                    <div class="grid grid-cols-1 md:grid-cols-2 gap-6 mb-6">
+                        <div class="bg-gray-50 p-6 rounded-lg border border-gray-200">
+                            <h2 class="text-sm font-medium text-gray-500 uppercase">2025 Budget Need (Nov-Dec)</h2>
+                            <p class="text-3xl font-bold text-theme-purple" id="budget2025">...</p>
+                        </div>
+                        <div class="bg-gray-50 p-6 rounded-lg border border-gray-200">
+                            <h2 class="text-sm font-medium text-gray-500 uppercase">2026 Budget Need</h2>
+                            <p class="text-3xl font-bold text-theme-purple" id="budget2026">...</p>
+                        </div>
+                    </div>
+
+                    <!-- Project Toggles -->
+                    <div class="grid grid-cols-1 md:grid-cols-2 gap-6 mb-6">
+                        <div>
+                            <!-- THIS IS THE FIX -->
+                            <h3 class="text-lg font-semibold text-theme-blue mb-2">Foundational</h3>
+                            <div class="space-y-2">
+                                <label class="flex items-center text-gray-700">
+                                    <input type="checkbox" class="budget-toggle h-4 w-4 text-theme-blue rounded" data-project="AI Governance Council" checked disabled>
+                                    <span class="ml-2">AI Governance Council</span>
+                                </label>
+                                <label class="flex items-center text-gray-700">
+                                    <input type="checkbox" class="budget-toggle h-4 w-4 text-theme-blue rounded" data-project="AI Literacy & Enablement" checked disabled>
+                                    <span class="ml-2">AI Literacy & Enablement</span>
+                                </label>
+                                <label class="flex items-center text-gray-700">
+                                    <input type="checkbox" class="budget-toggle h-4 w-4 text-theme-blue rounded" data-project="Tech & Data Preparation" checked disabled>
+                                    <span class="ml-2">Tech & Data Preparation</span>
+                                </label>
+                                <label class="flex items-center text-gray-700">
+                                    <input type="checkbox" class="budget-toggle h-4 w-4 text-theme-blue rounded" data-project="AI Development Tools" checked disabled>
+                                    <span class="ml-2">AI Development Tools</span>
+                                </label>
+                                <label class="flex items-center text-gray-700">
+                                    <input type="checkbox" class="budget-toggle h-4 w-4 text-theme-blue rounded" data-project="Marketing & Sales Enablement" checked disabled>
+                                    <span class="ml-2">Marketing & Sales Enablement</span>
+                                </label>
+                                <label class="flex items-center text-gray-700">
+                                    <input type="checkbox" class="budget-toggle h-4 w-4 text-theme-blue rounded" data-project="Strategic AI Advisory Services" checked disabled>
+                                    <span class="ml-2">Strategic AI Advisory Services</span>
+                                </label>
+                            </div>
+                        </div>
+                        <div>
+                            <!-- THIS IS THE FIX -->
+                            <h3 class="text-lg font-semibold text-theme-mint mb-2">Quick Wins</h3>
+                            <div class="space-y-2">
+                                <label class="flex items-center text-gray-700 cursor-pointer">
+                                    <input type="checkbox" class="budget-toggle h-4 w-4 text-theme-mint rounded" data-project="Proposal & SOW Automation" checked>
+                                    <span class="ml-2">Proposal & SOW Automation</span>
+                                </label>
+                                <label class="flex items-center text-gray-700 cursor-pointer">
+                                    <input type="checkbox" class="budget-toggle h-4 w-4 text-theme-mint rounded" data-project="AI Meeting Assistant" checked>
+                                    <span class="ml-2">AI Meeting Assistant</span>
+                                </label>
+                                <label class="flex items-center text-gray-700 cursor-pointer">
+                                    <input type="checkbox" class="budget-toggle h-4 w-4 text-theme-mint rounded" data-project="Large Document Interrogation" checked>
+                                    <span class="ml-2">Large Document Interrogation</span>
+                                </label>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Monthly Budget Table -->
+                    <div class="overflow-x-auto">
+                        <table class="min-w-full divide-y divide-gray-200">
+                            <thead class="bg-gray-50">
+                                <tr>
+                                    <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Project</th>
+                                    <th scope="col" class="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">Nov '25</th>
+                                    <th scope="col" class="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">Dec '25</th>
+                                    <th scope="col" class="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider font-bold">2025 Total</th>
+                                    <th scope="col" class="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">Jan '26</th>
+                                    <th scope="col" class="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">Feb '26</th>
+                                    <th scope="col" class="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">Mar '26</th>
+                                    <th scope="col" class="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">Apr '26</th>
+                                    <th scope="col" class="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">May '26</th>
+                                    <th scope="col" class="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">Jun '26</th>
+                                    <th scope="col" class="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">Jul '26</th>
+                                    <th scope="col" class="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">Aug '26</th>
+                                    <th scope="col" class="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">Sep '26</th>
+                                    <th scope="col" class="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">Oct '26</th>
+                                    <th scope="col" class="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">Nov '26</th>
+                                    <th scope="col" class="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">Dec '26</th>
+                                    <th scope="col" class="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider font-bold">2026 Total</th>
+                                    <th scope="col" class="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider font-bold">Grand Total</th>
+                                </tr>
+                            </thead>
+                            <tbody class="bg-white divide-y divide-gray-200" id="budgetTableBody">
+                                <!-- JS will populate this -->
+                            </tbody>
+                            <tfoot class="bg-gray-100" id="budgetTableFooter">
+                                <!-- JS will populate this -->
+                            </tfoot>
+                        </table>
+                    </div>
+                </div>
+            </div>
+
             <!-- Use Case Details Tab -->
             <div id="detailsView" class="tab-content hidden space-y-4">
                 <!-- Content will be dynamically generated here -->
-            </div>
-
-            <!-- CFO Talking Points Tab (Removed) -->
-            <div id="cfoView" class="tab-content hidden">
             </div>
 
         </div> <!-- /end #dashboard-content -->
@@ -250,6 +354,7 @@
         const fullData = {
             projects: [
                 {
+                    id: "AI Governance Council",
                     name: "AI Governance Council",
                     category: "AI Foundation",
                     capitalCostMin: 0,
@@ -261,13 +366,15 @@
                     timeline: "8 weeks",
                     roiMin: 0,
                     roiMax: 0,
-                    metrics: ["Time-to-Resolve on AI Risk", "Tool in Compliance Rate"]
+                    metrics: ["Time-to-Resolve on AI Risk", "Tool in Compliance Rate"],
+                    cfoPriority: "Crucial"
                 },
                 {
+                    id: "AI Literacy & Enablement",
                     name: "AI Literacy & Enablement",
                     category: "AI Foundation",
                     capitalCostMin: 14500 + 108000,
-                    capitalCostMax: 14500 + 324000,
+                    capitalCostMax: 14500 + 324000, // 338500
                     resourceCost: 2996100,
                     resourceHours: 8870,
                     ongoingCost: 40000 + 324000, // Max ongoing
@@ -275,12 +382,15 @@
                     timeline: "6 weeks",
                     roiMin: 0,
                     roiMax: 0,
-                    metrics: ["AI Literacy Rate", "Task Automation Adoption", "Talent Retention"]
+                    metrics: ["AI Literacy Rate", "Task Automation Adoption", "Talent Retention"],
+                    cfoPriority: "Crucial"
                 },
                 {
+                    id: "Tech & Data Preparation",
                     name: "Tech & Data Preparation",
                     category: "AI Foundation",
-                    capitalCostMin: 100000,
+                    // This capital cost is the sandbox, which is now handled by the new budget model
+                    capitalCostMin: 100000, 
                     capitalCostMax: 500000,
                     resourceCost: 492400,
                     resourceHours: 1360,
@@ -289,9 +399,11 @@
                     timeline: "12 weeks",
                     roiMin: 0,
                     roiMax: 0,
-                    metrics: ["AI Data Readiness Score", "Time-to-Insight", "Experiment-to-Product Velocity"]
+                    metrics: ["AI Data Readiness Score", "Time-to-Insight", "Experiment-to-Product Velocity"],
+                    cfoPriority: "Crucial"
                 },
                 {
+                    id: "AI Development Tools",
                     name: "AI Development Tools",
                     category: "AI Foundation",
                     capitalCostMin: 48000,
@@ -303,9 +415,11 @@
                     timeline: "12 weeks",
                     roiMin: 0,
                     roiMax: 0,
-                    metrics: ["Project Velocity", "Time-to-Delivery"]
+                    metrics: ["Project Velocity", "Time-to-Delivery"],
+                    cfoPriority: "Crucial"
                 },
                 {
+                    id: "Proposal & SOW Automation",
                     name: "Proposal & SOW Automation",
                     category: "Quick Win",
                     capitalCostMin: 1000,
@@ -317,9 +431,11 @@
                     timeline: "8 weeks",
                     roiMin: 3400000,
                     roiMax: 3400000,
-                    metrics: ["Increase Win Rate", "Higher Deal Value", "70% Proposal Speed"]
+                    metrics: ["Increase Win Rate", "Higher Deal Value", "70% Proposal Speed"],
+                    cfoPriority: "Optional"
                 },
                 {
+                    id: "AI Meeting Assistant",
                     name: "AI Meeting Assistant",
                     category: "Quick Win",
                     capitalCostMin: 72000,
@@ -331,9 +447,11 @@
                     timeline: "6 weeks",
                     roiMin: 1170000,
                     roiMax: 2340000,
-                    metrics: ["Time saved on Meeting Summary", "Increased accountability"]
+                    metrics: ["Time saved on Meeting Summary", "Increased accountability"],
+                    cfoPriority: "Optional"
                 },
                 {
+                    id: "Large Document Interrogation",
                     name: "Large Document Interrogation",
                     category: "Quick Win",
                     capitalCostMin: 50400,
@@ -345,9 +463,11 @@
                     timeline: "12 weeks",
                     roiMin: 520000,
                     roiMax: 780000,
-                    metrics: ["Time-on-Reviewing-Large-Document", "Time-to-Impact"]
+                    metrics: ["Time-on-Reviewing-Large-Document", "Time-to-Impact"],
+                    cfoPriority: "Optional"
                 },
                 {
+                    id: "Marketing & Sales Enablement",
                     name: "Marketing & Sales Enablement",
                     category: "Strategic Value",
                     capitalCostMin: 0,
@@ -359,9 +479,11 @@
                     timeline: "N/A",
                     roiMin: 1500000,
                     roiMax: 2500000,
-                    metrics: ["AI GTM Readiness", "Revenue Generated", "New Logos"]
+                    metrics: ["AI GTM Readiness", "Revenue Generated", "New Logos"],
+                    cfoPriority: "Crucial"
                 },
                 {
+                    id: "Strategic AI Advisory Services",
                     name: "Strategic AI Advisory Services",
                     category: "Strategic Value",
                     capitalCostMin: 0,
@@ -373,7 +495,8 @@
                     timeline: "N/A",
                     roiMin: 1800000,
                     roiMax: 1800000,
-                    metrics: ["Number of AI Strategy Engagements", "Revenue Generated"]
+                    metrics: ["Number of AI Strategy Engagements", "Revenue Generated"],
+                    cfoPriority: "Crucial"
                 }
             ],
             summary: {
@@ -386,6 +509,72 @@
                 totalMaxROI: 10820000,    // Sum of ROI-generating projects' max ROI
                 summaryMinROI: 15000000,
                 summaryMaxROI: 26000000,
+            },
+            // This new object drives the budget table
+            capitalBudget: {
+                // Gantt: Nov '25 - Jan '26. No capital costs.
+                "AI Governance Council": [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
+                // Gantt: Nov '25 - Feb '26. 
+                // One-time $14.5k / 4mo = $3625/mo for Nov, Dec, Jan, Feb.
+                // Annual $324k / 12mo = $27,000/mo. Starts Nov.
+                "AI Literacy & Enablement": [30625, 30625, 30625, 30625, 27000, 27000, 27000, 27000, 27000, 27000, 27000, 27000, 27000, 27000],
+                // Gantt: Jan '26 - Mar '26.
+                // Sandbox Only (no separate hardware cost): 5 env @ $2k/mo for 2025. 10 env for Jan-May '26. 20 env for Jun-Dec '26.
+                "Tech & Data Preparation": [10000, 10000, 20000, 20000, 20000, 20000, 20000, 40000, 40000, 40000, 40000, 40000, 40000, 40000],
+                // Gantt: Feb '26 - Mar '26.
+                // Annual $48k / 12mo = $4,000/mo. Starts Feb '26.
+                "AI Development Tools": [0, 0, 0, 4000, 4000, 4000, 4000, 4000, 4000, 4000, 4000, 4000, 4000, 4000],
+                // THIS IS THE FIX: Removed $500 one-time cost.
+                "Proposal & SOW Automation": [0, 1000, 1000, 1000, 1000, 1000, 1000, 1000, 1000, 1000, 1000, 1000, 1000, 1000],
+                // Gantt: Jan '26 - Feb '26.
+                // Annual $72k / 12mo = $6,000/mo. Starts Jan '26.
+                "AI Meeting Assistant": [0, 0, 6000, 6000, 6000, 6000, 6000, 6000, 6000, 6000, 6000, 6000, 6000, 6000],
+                // Gantt: Mar '26.
+                // Annual $50.4k / 12mo = $4,200/mo. Starts Mar '26.
+                "Large Document Interrogation": [0, 0, 0, 0, 4200, 4200, 4200, 4200, 4200, 4200, 4200, 4200, 4200, 4200],
+                // Gantt: Dec '25 - Mar '26. No capital costs.
+                "Marketing & Sales Enablement": [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
+                // Gantt: Jan '26 - Mar '26. No capital costs.
+                "Strategic AI Advisory Services": [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]
+            },
+            // THIS IS THE FIX: Updated tooltip text
+            capitalBudgetTooltips: {
+                "AI Governance Council": [
+                    "$0", "$0", "$0", "$0", "$0", "$0", "$0", "$0", "$0", "$0", "$0", "$0", "$0", "$0"
+                ],
+                "AI Literacy & Enablement": [
+                    "$27,000 (Monthly Tool License) + $3,625 (Phased Training Fee)", "$27,000 (Monthly Tool License) + $3,625 (Phased Training Fee)", "$27,000 (Monthly Tool License) + $3,625 (Phased Training Fee)", "$27,000 (Monthly Tool License) + $3,625 (Phased Training Fee)",
+                    "$27,000 (Monthly Tool License)", "$27,000 (Monthly Tool License)", "$27,000 (Monthly Tool License)", "$27,000 (Monthly Tool License)",
+                    "$27,000 (Monthly Tool License)", "$27,000 (Monthly Tool License)", "$27,000 (Monthly Tool License)", "$27,000 (Monthly Tool License)", "$27,000 (Monthly Tool License)", "$27,000 (Monthly Tool License)"
+                ],
+                "Tech & Data Preparation": [
+                    "5 Sandbox Environments @ $2,000/mo", "5 Sandbox Environments @ $2,000/mo",
+                    "10 Sandbox Environments @ $2,000/mo", "10 Sandbox Environments @ $2,000/mo", "10 Sandbox Environments @ $2,000/mo", "10 Sandbox Environments @ $2,000/mo", "10 Sandbox Environments @ $2,000/mo",
+                    "20 Sandbox Environments @ $2,000/mo", "20 Sandbox Environments @ $2,000/mo", "20 Sandbox Environments @ $2,000/mo", "20 Sandbox Environments @ $2,000/mo", "20 Sandbox Environments @ $2,000/mo", "20 Sandbox Environments @ $2,000/mo", "20 Sandbox Environments @ $2,000/mo"
+                ],
+                "AI Development Tools": [
+                    "$0", "$0", "$0", "$4,000 (Monthly Dev Tool License)", "$4,000 (Monthly Dev Tool License)", "$4,000 (Monthly Dev Tool License)", "$4,000 (Monthly Dev Tool License)", "$4,000 (Monthly Dev Tool License)",
+                    "$4,000 (Monthly Dev Tool License)", "$4,000 (Monthly Dev Tool License)", "$4,000 (Monthly Dev Tool License)", "$4,000 (Monthly Dev Tool License)", "$4,000 (Monthly Dev Tool License)", "$4,000 (Monthly Dev Tool License)"
+                ],
+                "Proposal & SOW Automation": [
+                    "$0", "$1,000 (Monthly Hosting)", "$1,000 (Monthly Hosting)",
+                    "$1,000 (Monthly Hosting)", "$1,000 (Monthly Hosting)", "$1,000 (Monthly Hosting)", "$1,000 (Monthly Hosting)", "$1,000 (Monthly Hosting)",
+                    "$1,000 (Monthly Hosting)", "$1,000 (Monthly Hosting)", "$1,000 (Monthly Hosting)", "$1,000 (Monthly Hosting)", "$1,000 (Monthly Hosting)", "$1,000 (Monthly Hosting)"
+                ],
+                "AI Meeting Assistant": [
+                    "$0", "$0", "$6,000 (Monthly Meeting Tool License)", "$6,000 (Monthly Meeting Tool License)", "$6,000 (Monthly Meeting Tool License)", "$6,000 (Monthly Meeting Tool License)", "$6,000 (Monthly Meeting Tool License)", "$6,000 (Monthly Meeting Tool License)",
+                    "$6,000 (Monthly Meeting Tool License)", "$6,000 (Monthly Meeting Tool License)", "$6,000 (Monthly Meeting Tool License)", "$6,000 (Monthly Meeting Tool License)", "$6,000 (Monthly Meeting Tool License)", "$6,000 (Monthly Meeting Tool License)"
+                ],
+                "Large Document Interrogation": [
+                    "$0", "$0", "$0", "$0", "$4,200 (Monthly Doc Tool License)", "$4,200 (Monthly Doc Tool License)", "$4,200 (Monthly Doc Tool License)", "$4,200 (Monthly Doc Tool License)",
+                    "$4,200 (Monthly Doc Tool License)", "$4,200 (Monthly Doc Tool License)", "$4,200 (Monthly Doc Tool License)", "$4,200 (Monthly Doc Tool License)", "$4,200 (Monthly Doc Tool License)", "$4,200 (Monthly Doc Tool License)"
+                ],
+                "Marketing & Sales Enablement": [
+                    "$0", "$0", "$0", "$0", "$0", "$0", "$0", "$0", "$0", "$0", "$0", "$0", "$0", "$0"
+                ],
+                "Strategic AI Advisory Services": [
+                    "$0", "$0", "$0", "$0", "$0", "$0", "$0", "$0", "$0", "$0", "$0", "$0", "$0", "$0"
+                ]
             }
         };
         
@@ -397,6 +586,7 @@
         const chartInstances = {};
         let activeView = 'capital'; // 'capital', 'total', 'hours'
         let activeBreakdownTab = 'investmentView'; 
+        let activeBudgetTab = 'dashboard';
         const themeColors = {
             blue: '#0053a1',
             mint: '#36A593', // User's new color
@@ -410,7 +600,7 @@
             setupToggles();
             setupTabs();
             updateDashboard();
-            // initAILogic(); // Removed
+            initBudgetTab(); // Initialize the new budget tab logic
         });
         
         function setupToggles() {
@@ -431,6 +621,11 @@
         function setupTabs() {
             const tabs = document.querySelectorAll('.dashboard-tab');
             const tabContents = document.querySelectorAll('.tab-content');
+            
+            const masterToggleContainer = document.getElementById('master-toggle-container');
+            const kpiCardsContainer = document.getElementById('kpi-cards');
+            const toggles = document.querySelectorAll('.view-toggle');
+
             tabs.forEach(tab => {
                 tab.addEventListener('click', () => {
                     tabs.forEach(t => {
@@ -441,10 +636,43 @@
                     tab.classList.remove('text-gray-500', 'border-transparent', 'hover:text-gray-700', 'hover:border-gray-300');
                     
                     const tabName = tab.getAttribute('data-tab');
+                    activeBudgetTab = tabName;
+                    
                     tabContents.forEach(content => {
                         content.classList.add('hidden');
                     });
                     document.getElementById(`${tabName}View`).classList.remove('hidden');
+                    
+                    // THIS IS THE FIX: Show/hide/disable master toggle and kpi cards
+                    masterToggleContainer.classList.remove('hidden');
+                    kpiCardsContainer.classList.remove('hidden');
+
+                    if (tabName === 'budget') {
+                        // On Budget tab: Disable toggles and force Capital view
+                        toggles.forEach(toggle => {
+                            toggle.disabled = true;
+                            toggle.classList.add('opacity-50', 'cursor-not-allowed');
+                        });
+                        updateToggleStyles('capital'); // Force visual state to Capital
+                        initKpiCards(getChartData('capital')); // Force KPI cards to show Capital data
+                    } else if (tabName === 'details') {
+                         // On Details tab: Enable toggles and restore state
+                        toggles.forEach(toggle => {
+                            toggle.disabled = false;
+                            toggle.classList.remove('opacity-50', 'cursor-not-allowed');
+                        });
+                        updateToggleStyles(activeView); // Restore visual state
+                        initKpiCards(getChartData(activeView)); // Restore KPI cards
+                        populateDetailsTab(); // Re-run this to update details
+                    } else {
+                         // On Dashboard tab: Enable toggles and restore state
+                        toggles.forEach(toggle => {
+                            toggle.disabled = false;
+                            toggle.classList.remove('opacity-50', 'cursor-not-allowed');
+                        });
+                        updateToggleStyles(activeView); // Restore visual state
+                        initKpiCards(getChartData(activeView)); // Restore KPI cards
+                    }
                 });
             });
             
@@ -490,18 +718,27 @@
         }
 
         function updateDashboard() {
-            updateToggleStyles();
+            // This function is now ONLY for the master toggles, not tab switches
+            updateToggleStyles(activeView);
             destroyAllCharts();
             updateVisibility();
             initAllCharts();
         }
 
-        function updateToggleStyles() {
-            const toggles = ['viewToggleCapital', 'viewToggleTotal', 'viewToggleHours'];
-            toggles.forEach(id => {
-                const button = document.getElementById(id);
+        function updateToggleStyles(forceView) {
+            // THIS IS THE FIX: Accepts an optional view to force
+            const viewToShow = forceView || activeView;
+            
+            const toggles = [
+                { id: 'viewToggleCapital', view: 'capital' },
+                { id: 'viewToggleTotal', view: 'total' },
+                { id: 'viewToggleHours', view: 'hours' },
+            ];
+            
+            toggles.forEach(toggle => {
+                const button = document.getElementById(toggle.id);
                 button.classList.remove('bg-theme-blue', 'text-white', 'bg-gray-200', 'text-gray-700');
-                if (button.id.toLowerCase().includes(activeView)) {
+                if (toggle.view === viewToShow) {
                     button.classList.add('bg-theme-blue', 'text-white');
                 } else {
                     button.classList.add('bg-gray-200', 'text-gray-700');
@@ -624,7 +861,8 @@
         
         // --- DATA HELPERS ---
 
-        function getChartData() {
+        function getChartData(forceView) {
+            const view = forceView || activeView;
             const data = fullData.summary;
             
             // View 1: Capital Investment
@@ -696,9 +934,9 @@
                 roi: { minTotal: 0, maxTotal: 0, byCategory: {}, byProject: {} } // N/A
             };
 
-            if (activeView === 'capital') return capital;
-            if (activeView === 'total') return total;
-            return hours; // activeView === 'hours'
+            if (view === 'capital') return capital;
+            if (view === 'total') return total;
+            return hours; // view === 'hours'
         }
 
         function getProjectChartData(project) {
@@ -730,18 +968,26 @@
             const kpiInvestmentSub = document.getElementById('kpiTotalInvestmentSub');
             const kpiRoi = document.getElementById('kpiTotalROI');
 
-            const format = (val) => activeView === 'hours' ? 
+            // THIS IS THE FIX: Determine view from data, not global state
+            let currentView = 'capital';
+            if (investment.maxTotal === fullData.summary.totalMaxInvestment) {
+                currentView = 'total';
+            } else if (investment.maxTotal === fullData.summary.totalResourceHours) {
+                currentView = 'hours';
+            }
+
+            const format = (val) => currentView === 'hours' ? 
                 `${val.toLocaleString()} hrs` : 
                 `$${(val / 1000000).toFixed(2)}M`;
 
             kpiInvestment.textContent = format(investment.maxTotal);
             
-            if (activeView === 'capital') {
+            if (currentView === 'capital') {
                 kpiInvestmentLabel.textContent = 'Total Capital Investment';
                 kpiInvestmentSub.textContent = 'Max Capital Spend';
                 kpiRoi.textContent = `$${(roi.minTotal / 1000000).toFixed(1)}M - $${(roi.maxTotal / 1000000).toFixed(1)}M`;
                 kpiRoi.parentElement.classList.remove('hidden');
-            } else if (activeView === 'total') {
+            } else if (currentView === 'total') {
                 kpiInvestmentLabel.textContent = 'Total All-In Investment';
                 kpiInvestmentSub.textContent = `(${(fullData.summary.totalMaxCapital / 1000000).toFixed(2)}M Capital + ${(fullData.summary.totalResourceCost / 1000000).toFixed(2)}M Resources)`;
                 kpiRoi.textContent = `$${(roi.minTotal / 1000000).toFixed(1)}M - $${(roi.maxTotal / 1000000).toFixed(1)}M`;
@@ -1223,7 +1469,8 @@
         function populateDetailsTab() {
             const container = document.getElementById('detailsView');
             container.innerHTML = ''; // Clear old content
-            const { investment } = getChartData(); // Get current view data
+            
+            const { investment } = getChartData(activeView); 
             const format = (val) => activeView === 'hours' ? `${val.toLocaleString()} hrs` : `$${val.toLocaleString()}`;
 
             fullData.projects.forEach(project => {
@@ -1259,20 +1506,126 @@
                                 <div class="text-sm text-gray-700">${project.metrics.join(', ')}</div>
                             </div>
                         </div>
-
-                        <!-- Analyze Risks feature removed -->
                     </div>
                 `;
                 container.innerHTML += card;
             });
         }
 
-        // --- AI FEATURES (Removed) ---
+        // --- NEW BUDGET TAB LOGIC ---
         
-        function initAILogic() {
-            // All AI logic has been removed as requested.
+        function initBudgetTab() {
+            const toggles = document.querySelectorAll('.budget-toggle');
+            toggles.forEach(toggle => {
+                toggle.addEventListener('change', updateBudgetData);
+            });
+            updateBudgetData(); // Initial load
+        }
+
+        function formatCurrency(num) {
+            // THIS IS THE FIX: New logic to show 1 decimal for < $10k
+            if (num === 0) return '$0';
+            if (Math.abs(num) >= 1000000) {
+                return `$${(num / 1000000).toFixed(1)}M`; // $1.5M
+            }
+            if (Math.abs(num) >= 10000) { // $10,000 and up
+                return `$${(num / 1000).toFixed(0)}k`; // $10k, $31k
+            }
+            if (Math.abs(num) >= 1000) { // $1,000 to $9,999
+                return `$${(num / 1000).toFixed(1)}k`; // $1.5k, $4.2k
+            }
+            return `$${num.toLocaleString()}`; // $500
         }
         
+        function updateBudgetData() {
+            const body = document.getElementById('budgetTableBody');
+            const footer = document.getElementById('budgetTableFooter');
+            if (!body || !footer) return; // Failsafe
+            
+            body.innerHTML = ''; // Clear table body
+            footer.innerHTML = ''; 
+
+            const activeProjects = new Set();
+            document.querySelectorAll('.budget-toggle:checked').forEach(toggle => {
+                activeProjects.add(toggle.getAttribute('data-project'));
+            });
+
+            let monthlyTotals = new Array(14).fill(0);
+            let total2025 = 0;
+            let total2026 = 0;
+            
+            fullData.projects.forEach(project => {
+                const budgetData = fullData.capitalBudget[project.name];
+                const tooltipData = fullData.capitalBudgetTooltips[project.name]; // THIS IS THE FIX
+                if (!budgetData) return;
+
+                const row = document.createElement('tr');
+                const isActive = activeProjects.has(project.name);
+                
+                let rowTotal2025 = 0;
+                let rowTotal2026 = 0;
+                let rowHtml = `<td class="px-6 py-4 whitespace-nowrap text-sm font-medium ${isActive ? 'text-gray-900' : 'text-gray-400'}">${project.name}</td>`;
+                
+                budgetData.forEach((monthCost, i) => {
+                    const cost = isActive ? monthCost : 0;
+                    // THIS IS THE FIX: Add tooltip text
+                    const tooltipText = (tooltipData && tooltipData[i] && cost > 0) ? tooltipData[i] : (cost === 0 ? 'No cost this month' : '');
+                    rowHtml += `<td title="${tooltipText}" class="px-6 py-4 whitespace-nowrap text-sm text-right ${isActive && cost > 0 ? 'text-gray-700' : 'text-gray-400'}">${formatCurrency(cost)}</td>`;
+                    monthlyTotals[i] += cost;
+                    
+                    if (i < 2) { // Nov '25, Dec '25
+                        rowTotal2025 += cost;
+                    } else { // Jan '26 - Dec '26
+                        rowTotal2026 += cost;
+                    }
+
+                    // THIS IS THE FIX: Add 2025 Total column
+                    if (i === 1) {
+                        rowHtml += `<td class="px-6 py-4 whitespace-nowrap text-sm text-right font-semibold ${isActive ? 'text-gray-800' : 'text-gray-400'} bg-gray-50" title="Total for 2025">${formatCurrency(rowTotal2025)}</td>`;
+                    }
+                });
+                
+                // THIS IS THE FIX: Add 2026 Total column
+                rowHtml += `<td class="px-6 py-4 whitespace-nowrap text-sm text-right font-semibold ${isActive ? 'text-gray-800' : 'text-gray-400'} bg-gray-50" title="Total for 2026">${formatCurrency(rowTotal2026)}</td>`;
+                
+                // THIS IS THE FIX: Add Grand Total column
+                const grandTotal = rowTotal2025 + rowTotal2026;
+                rowHtml += `<td class="px-6 py-4 whitespace-nowrap text-sm text-right font-bold ${isActive ? 'text-gray-900' : 'text-gray-400'} bg-gray-100" title="Grand Total for ${project.name}">${formatCurrency(grandTotal)}</td>`;
+                row.innerHTML = rowHtml;
+                body.appendChild(row);
+            });
+            
+            // Add footer row
+            let footerHtml = `<td class="px-6 py-4 whitespace-nowrap text-sm font-bold text-gray-900">Total Monthly Need</td>`;
+            monthlyTotals.forEach((total, i) => {
+                footerHtml += `<td class="px-6 py-4 whitespace-nowrap text-sm text-right font-bold text-theme-purple" title="Total for this month">${formatCurrency(total)}</td>`;
+                if (i < 2) { // Nov '25, Dec '25
+                    total2025 += total;
+                } else { // Jan '26 - Dec '26
+                    total2026 += total;
+                }
+                
+                // THIS IS THE FIX: Add 2025 Total footer cell
+                if (i === 1) {
+                    footerHtml += `<td class="px-6 py-4 whitespace-nowrap text-sm text-right font-bold text-theme-purple bg-gray-200" title="Total for 2025">${formatCurrency(total2025)}</td>`;
+                }
+            });
+            
+            // THIS IS THE FIX: Add 2026 Total footer cell
+            footerHtml += `<td class="px-6 py-4 whitespace-nowrap text-sm text-right font-bold text-theme-purple bg-gray-200" title="Total for 2026">${formatCurrency(total2026)}</td>`;
+            
+            // THIS IS THE FIX: Add Grand Total footer cell
+            footerHtml += `<td class="px-6 py-4 whitespace-nowrap text-sm text-right font-bold text-theme-purple bg-gray-200" title="Grand Total">${formatCurrency(total2025 + total2026)}</td>`;
+            
+            const footerRow = document.createElement('tr'); 
+            footerRow.innerHTML = footerHtml;
+            footer.appendChild(footerRow); 
+
+            // Update KPI Cards
+            document.getElementById('budget2025').textContent = formatCurrency(total2025);
+            document.getElementById('budget2026').textContent = formatCurrency(total2026);
+        }
+
     </script>
 
 </body>
